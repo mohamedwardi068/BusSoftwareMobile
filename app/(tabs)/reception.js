@@ -268,6 +268,7 @@ export default function ReceptionScreen() {
                 onClose={() => setFinishModalVisible(false)}
                 onConfirm={handleFinishWork}
                 loading={actionLoading}
+                products={receptions}
             />
 
             <PiecesModal

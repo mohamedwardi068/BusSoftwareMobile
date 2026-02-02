@@ -11,8 +11,45 @@ import {
 } from 'react-native';
 import { X, Hash, Sparkles } from 'lucide-react-native';
 
-export default function FinishModal({ visible, onClose, onConfirm, loading }) {
+export default function FinishModal({ visible, onClose, onConfirm, loading, products = [] }) {
     const [serialNumber, setSerialNumber] = useState('');
+
+    const yearSuffix = new Date().getFullYear().toString().slice(-2);
+    const SERIAL_PREFIX = `SBS${yearSuffix}ET`;
+
+    const { lastSerial, suggestedSerial } = React.useMemo(() => {
+        const allSerials = products
+            .map((p) => typeof p.extra?.serialNumber === 'string' ? p.extra.serialNumber : null)
+            .filter((sn) => sn && sn.toUpperCase().startsWith('SBS'));
+
+        if (allSerials.length === 0) {
+            return { lastSerial: 'Aucun', suggestedSerial: 'SBS25ET0001' };
+        }
+
+        let maxNum = 0;
+        let lastValue = 'Aucun';
+
+        allSerials.forEach((sn) => {
+            // Match SBS{YY}ET{NNNN}
+            const match = sn.match(/^SBS(\d{2})ET(\d+)$/i);
+            if (match) {
+                const num = parseInt(match[2], 10);
+                if (num > maxNum) {
+                    maxNum = num;
+                    lastValue = sn;
+                }
+            }
+        });
+
+        const next = `${SERIAL_PREFIX}${String(maxNum + 1).padStart(4, '0')}`;
+        return { lastSerial: lastValue, suggestedSerial: next };
+    }, [products, SERIAL_PREFIX]);
+
+    React.useEffect(() => {
+        if (visible) {
+            setSerialNumber(suggestedSerial);
+        }
+    }, [visible]);
 
     const handleConfirm = () => {
         onConfirm(serialNumber.trim() || null);
@@ -48,7 +85,10 @@ export default function FinishModal({ visible, onClose, onConfirm, loading }) {
                             />
                         </View>
                         <Text style={styles.hint}>
-                            Si vous laissez ce champ vide, le système générera automatiquement un numéro de série séquentiel.
+                            Dernier : {lastSerial} | Suggestion : {suggestedSerial}
+                        </Text>
+                        <Text style={styles.hint}>
+                            Si vous laissez ce champ vide, le système utilisera la suggestion ci-dessus.
                         </Text>
 
                         <TouchableOpacity
