@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     RefreshControl,
     Alert,
+    TextInput,
 } from 'react-native';
 import { CheckSquare, Hash, Clock, User, ChevronRight, PackageCheck, RotateCcw, Search, X as CloseIcon } from 'lucide-react-native';
 import api from '../../src/api/axios';
@@ -25,6 +26,7 @@ export default function DeliveredScreen() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [detailVisible, setDetailVisible] = useState(false);
+    const isDelivered = (item) => item.delivered === 'yes' || item.delivered === true;
 
     const fetchDeliveredProducts = async () => {
         try {
@@ -34,7 +36,7 @@ export default function DeliveredScreen() {
             // Logic from web: etat in [finit, returner] AND delivered is true/yes
             const filtered = data.filter(r =>
                 (r.etat?.toLowerCase() === 'finit' || r.etat?.toLowerCase() === 'returner' || r.isReturned) &&
-                (r.delivered === 'yes' || r.delivered === true)
+                isDelivered(r)
             );
 
             // Sort by updatedAt or date (most recent first)

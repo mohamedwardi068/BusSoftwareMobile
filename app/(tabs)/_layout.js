@@ -1,5 +1,5 @@
 import { Tabs, useRouter } from 'expo-router';
-import { Package, ClipboardList, LogOut, Settings2, Users, CheckSquare } from 'lucide-react-native';
+import { Package, ClipboardList, LogOut, Settings2, Users, CheckSquare, BarChart3 } from 'lucide-react-native';
 import { TouchableOpacity, Alert, Platform } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 
@@ -77,6 +77,15 @@ export default function TabLayout() {
                     title: 'Produits Livrés',
                     tabBarLabel: 'Livrés',
                     tabBarIcon: ({ color }) => <CheckSquare size={24} color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="recapitulatif"
+                options={{
+                    href: isAdmin ? "/recapitulatif" : null,
+                    title: 'Récapitulatif',
+                    tabBarLabel: 'Récap',
+                    tabBarIcon: ({ color }) => <BarChart3 size={24} color={color} />,
                 }}
             />
             <Tabs.Screen

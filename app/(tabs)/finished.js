@@ -28,6 +28,8 @@ export default function FinishedScreen() {
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [detailVisible, setDetailVisible] = useState(false);
 
+    const isDelivered = (item) => item.delivered === 'yes' || item.delivered === true;
+
     const fetchFinishedProducts = async () => {
         try {
             const response = await api.get('/receptions');
@@ -35,7 +37,7 @@ export default function FinishedScreen() {
 
             // Filter: etat is 'finit' or 'isReturned' is true, and NOT delivered
             const filtered = data.filter(p =>
-                (p.etat === 'finit' || p.isReturned) && p.delivered !== 'yes'
+                (p.etat === 'finit' || p.isReturned) && !isDelivered(p)
             );
 
             // Sort: Non-returned first (finit), then returned
@@ -174,20 +176,20 @@ export default function FinishedScreen() {
                         <TouchableOpacity
                             style={[
                                 styles.actionButtonDeliver,
-                                (item.delivered === 'yes' || justDelivered.has(item._id)) && { backgroundColor: '#16a34a', opacity: 0.8 }
+                                (isDelivered(item) || justDelivered.has(item._id)) && { backgroundColor: '#16a34a', opacity: 0.8 }
                             ]}
                             onPress={() => handleDeliver(item._id)}
-                            disabled={actionLoading || item.delivered === 'yes' || justDelivered.has(item._id)}
+                            disabled={actionLoading || isDelivered(item) || justDelivered.has(item._id)}
                         >
                             <CheckCircle size={18} color="#fff" />
                             <Text style={styles.actionButtonText}>
-                                {item.delivered === 'yes' || justDelivered.has(item._id) ? 'Livré' : 'Livrer'}
+                                {isDelivered(item) || justDelivered.has(item._id) ? 'Livré' : 'Livrer'}
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={styles.actionButtonReturn}
                             onPress={() => handleReturn(item._id)}
-                            disabled={actionLoading || item.isReturned || item.delivered === 'yes' || justDelivered.has(item._id)}
+                            disabled={actionLoading || item.isReturned || isDelivered(item) || justDelivered.has(item._id)}
                         >
                             <RotateCcw size={18} color="#fff" />
                             <Text style={styles.actionButtonText}>Retour</Text>

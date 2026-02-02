@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -7,13 +7,20 @@ import {
     ScrollView,
     Alert,
 } from 'react-native';
-import { User, Shield, Users, Package, LogOut, ChevronRight, Wrench, Settings2 } from 'lucide-react-native';
+import { User, Shield, Users, Package, LogOut, ChevronRight, Wrench, Settings2, UserPlus, UserMinus, Trash2 } from 'lucide-react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useRouter } from 'expo-router';
+import AddUserModal from '../../src/components/AddUserModal';
+import DeleteUserModal from '../../src/components/DeleteUserModal';
+import DeleteAccountModal from '../../src/components/DeleteAccountModal';
 
 export default function ParametresScreen() {
     const { user, logout } = useAuth();
     const router = useRouter();
+
+    const [addUserVisible, setAddUserVisible] = useState(false);
+    const [deleteUserVisible, setDeleteUserVisible] = useState(false);
+    const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
 
     const handleLogout = () => {
         Alert.alert(
@@ -72,6 +79,18 @@ export default function ParametresScreen() {
                     <Text style={styles.sectionTitle}>Gestion Système</Text>
                     <View style={styles.menuList}>
                         <MenuItem
+                            icon={UserPlus}
+                            title="Ajouter un utilisateur"
+                            subtitle="Créer un nouveau compte technicien"
+                            onPress={() => setAddUserVisible(true)}
+                        />
+                        <MenuItem
+                            icon={UserMinus}
+                            title="Gérer les utilisateurs"
+                            subtitle="Supprimer des comptes existants"
+                            onPress={() => setDeleteUserVisible(true)}
+                        />
+                        <MenuItem
                             icon={Users}
                             title="Clients"
                             subtitle="Gérer la base de données clients"
@@ -81,12 +100,6 @@ export default function ParametresScreen() {
                             icon={Wrench}
                             title="Pièces de rechange"
                             subtitle="Inventaire et codes-barres"
-                            onPress={() => Alert.alert("Infos", "La gestion complète sera disponible prochainement.")}
-                        />
-                        <MenuItem
-                            icon={Package}
-                            title="Modèles d'Étriers"
-                            subtitle="Configuration des équipements"
                             onPress={() => Alert.alert("Infos", "La gestion complète sera disponible prochainement.")}
                         />
                     </View>
@@ -99,8 +112,14 @@ export default function ParametresScreen() {
                 <View style={styles.menuList}>
                     <MenuItem
                         icon={Settings2}
-                        title="Préférences"
+                        title="Détails du compte"
                         onPress={() => { }}
+                    />
+                    <MenuItem
+                        icon={Trash2}
+                        title="Supprimer mon compte"
+                        danger={true}
+                        onPress={() => setDeleteAccountVisible(true)}
                     />
                     <MenuItem
                         icon={LogOut}
@@ -115,6 +134,22 @@ export default function ParametresScreen() {
                 <Text style={styles.versionText}>Bus Manager Mobile v2.1</Text>
                 <Text style={styles.copyrightText}>© 2026 Bus Software</Text>
             </View>
+
+            {/* Modals */}
+            <AddUserModal
+                visible={addUserVisible}
+                onClose={() => setAddUserVisible(false)}
+                onSuccess={() => { }}
+            />
+            <DeleteUserModal
+                visible={deleteUserVisible}
+                onClose={() => setDeleteUserVisible(false)}
+                onSuccess={() => { }}
+            />
+            <DeleteAccountModal
+                visible={deleteAccountVisible}
+                onClose={() => setDeleteAccountVisible(false)}
+            />
         </ScrollView>
     );
 }

@@ -65,6 +65,12 @@ export default function ProductDetailModal({ visible, product, onClose }) {
         </View>
     );
 
+    const getSafeSerialNumber = (extra) => {
+        if (!extra) return 'SANS-SÉRIE';
+        if (typeof extra.serialNumber === 'string') return extra.serialNumber;
+        return extra.serialNumber?.serialNumber || 'SANS-SÉRIE';
+    };
+
     return (
         <Modal
             visible={visible}
@@ -103,7 +109,7 @@ export default function ProductDetailModal({ visible, product, onClose }) {
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Statut & Traçabilité</Text>
                             <View style={styles.infoCard}>
-                                <DetailRow icon={Hash} label="Numéro de Série" value={product.extra?.serialNumber} color="#10b981" />
+                                <DetailRow icon={Hash} label="Numéro de Série" value={getSafeSerialNumber(product.extra)} color="#10b981" />
                                 <DetailRow icon={Clock} label="Date Réception" value={new Date(product.date).toLocaleDateString('fr-FR')} color="#64748b" />
                                 <DetailRow icon={CheckCircle2} label="Date Fin" value={new Date(product.updatedAt || product.date).toLocaleDateString('fr-FR')} color="#16a34a" />
                             </View>
