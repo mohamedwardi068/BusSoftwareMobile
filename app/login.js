@@ -12,6 +12,7 @@ import {
     Image,
 } from 'react-native';
 import { useAuth } from '../src/context/AuthContext';
+import { useRouter } from 'expo-router';
 import { LogIn } from 'lucide-react-native';
 
 export default function LoginScreen() {
@@ -19,6 +20,7 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { login } = useAuth();
+    const router = useRouter();
 
     const handleLogin = async () => {
         if (!username || !password) {
@@ -30,7 +32,9 @@ export default function LoginScreen() {
         const result = await login(username, password);
         setIsSubmitting(false);
 
-        if (!result.success) {
+        if (result.success) {
+            router.replace('/(tabs)/reception');
+        } else {
             Alert.alert('Erreur', result.message);
         }
     };
@@ -46,7 +50,7 @@ export default function LoginScreen() {
                         <LogIn size={48} color="#2563eb" />
                     </View>
                     <Text style={styles.title}>Bus Manager</Text>
-                    <Text style={styles.subtitle}>Connectez-vous pour continuer</Text>
+                    <Text style={styles.subtitle}>Connectez-vous pour continuer (v2.0)</Text>
                 </View>
 
                 <View style={styles.form}>

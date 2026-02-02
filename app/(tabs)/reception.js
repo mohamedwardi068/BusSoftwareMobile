@@ -8,21 +8,47 @@ import {
     ActivityIndicator,
     RefreshControl,
     Modal,
+    ScrollView,
+    Alert,
 } from 'react-native';
-import { Plus, Package, Clock, CheckCircle2 } from 'lucide-react-native';
+import { Plus, Package, Clock, CheckCircle2, PlayCircle, History, Filter, Wrench } from 'lucide-react-native';
 import api from '../../src/api/axios';
+import { useAuth } from '../../src/context/AuthContext';
 import NewReceptionForm from '../../src/components/NewReceptionForm';
+import FinishModal from '../../src/components/FinishModal';
+import PiecesModal from '../../src/components/PiecesModal';
+
+const STATUS_FILTERS = [
+    { label: 'Tous', value: 'all' },
+    { label: 'Reçu', value: 'recus' },
+    { label: 'En cours', value: 'en cours' },
+    { label: 'Retour', value: 'retour' },
+];
 
 export default function ReceptionScreen() {
+    const { user: currentUser } = useAuth();
+    const isAdmin = currentUser?.role === 'admin';
+
     const [receptions, setReceptions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('all');
+
+    // Action states
+    const [actionLoading, setActionLoading] = useState(false);
+    const [finishModalVisible, setFinishModalVisible] = useState(false);
+    const [piecesModalVisible, setPiecesModalVisible] = useState(false);
+    const [selectedProductId, setSelectedProductId] = useState(null);
 
     const fetchReceptions = async () => {
         try {
             const response = await api.get('/receptions');
-            setReceptions(response.data.data);
+            const data = Array.isArray(response.data) ? response.data : response.data.data || [];
+
+            // If not admin, we could potentially filter on the server, but for now we filter here
+            // to ensure they only see what they need.
+            setReceptions(data);
         } catch (error) {
             console.error('Error fetching receptions:', error);
         } finally {
@@ -34,6 +60,56 @@ export default function ReceptionScreen() {
     useEffect(() => {
         fetchReceptions();
     }, []);
+
+    const handleStartWork = async (id) => {
+        setActionLoading(true);
+        try {
+            await api.patch(`/receptions/${id}/etat`, { etat: 'en cours' });
+            fetchReceptions();
+        } catch (error) {
+            Alert.alert('Erreur', 'Impossible de démarrer le travail');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleOpenFinish = (id) => {
+        setSelectedProductId(id);
+        setFinishModalVisible(true);
+    };
+
+    const handleOpenPieces = (id) => {
+        setSelectedProductId(id);
+        setPiecesModalVisible(true);
+    };
+
+    const handleFinishWork = async (serial) => {
+        setActionLoading(true);
+        try {
+            await api.patch(`/receptions/${selectedProductId}/etat`, {
+                etat: 'finit',
+                serialNumber: serial || undefined
+            });
+            setFinishModalVisible(false);
+            fetchReceptions();
+        } catch (error) {
+            Alert.alert('Erreur', 'Impossible de finaliser la réparation');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const filteredReceptions = receptions.filter(item => {
+        // Hide finished products that aren't returned (they go to another tab)
+        if (item.etat === 'finit' && !item.isReturned) return false;
+
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'retour') return item.isReturned;
+
+        // Treat returned as "en cours" for display if that's the filter
+        const displayEtat = item.isReturned ? 'en cours' : item.etat;
+        return displayEtat === statusFilter;
+    });
 
     const onRefresh = () => {
         setRefreshing(true);
@@ -48,16 +124,19 @@ export default function ReceptionScreen() {
                 </View>
                 <View style={[
                     styles.statusBadge,
-                    item.etat === 'en cours' ? styles.statusInProgress :
-                        item.etat === 'recus' ? styles.statusReceived : styles.statusFinished
+                    item.isReturned ? styles.statusReturn :
+                        item.etat === 'en cours' ? styles.statusInProgress :
+                            item.etat === 'recus' ? styles.statusReceived : styles.statusFinished
                 ]}>
                     <Text style={[
                         styles.statusText,
-                        item.etat === 'en cours' ? styles.statusInProgressText :
-                            item.etat === 'recus' ? styles.statusReceivedText : styles.statusFinishedText
+                        item.isReturned ? styles.statusReturnText :
+                            item.etat === 'en cours' ? styles.statusInProgressText :
+                                item.etat === 'recus' ? styles.statusReceivedText : styles.statusFinishedText
                     ]}>
-                        {item.etat === 'recus' ? 'Reçu' :
-                            item.etat === 'en cours' ? 'En cours' : 'Fini'}
+                        {item.isReturned ? 'Retour' :
+                            item.etat === 'recus' ? 'Reçu' :
+                                item.etat === 'en cours' ? 'En cours' : 'Fini'}
                     </Text>
                 </View>
             </View>
@@ -75,6 +154,40 @@ export default function ReceptionScreen() {
                     </View>
                     <Text style={styles.positionText}>{item.position || ''}</Text>
                 </View>
+
+                {/* Actions */}
+                <View style={styles.actionRow}>
+                    {item.etat === 'recus' && (
+                        <TouchableOpacity
+                            style={styles.actionButtonStart}
+                            onPress={() => handleStartWork(item._id)}
+                            disabled={actionLoading}
+                        >
+                            <PlayCircle size={18} color="#fff" />
+                            <Text style={styles.actionButtonText}>Commencer</Text>
+                        </TouchableOpacity>
+                    )}
+                    {(item.etat === 'en cours' || item.isReturned) && (
+                        <>
+                            <TouchableOpacity
+                                style={styles.actionButtonPieces}
+                                onPress={() => handleOpenPieces(item._id)}
+                                disabled={actionLoading}
+                            >
+                                <Wrench size={18} color="#2563eb" />
+                                <Text style={styles.actionButtonTextPieces}>Pièces</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.actionButtonFinish}
+                                onPress={() => handleOpenFinish(item._id)}
+                                disabled={actionLoading}
+                            >
+                                <CheckCircle2 size={18} color="#fff" />
+                                <Text style={styles.actionButtonText}>Terminer</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
+                </View>
             </View>
         </View>
     );
@@ -89,8 +202,31 @@ export default function ReceptionScreen() {
 
     return (
         <View style={styles.container}>
+            {/* Status Filter Tabs */}
+            <View style={styles.filterContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+                    {STATUS_FILTERS.map((filter) => (
+                        <TouchableOpacity
+                            key={filter.value}
+                            style={[
+                                styles.filterButton,
+                                statusFilter === filter.value && styles.filterButtonActive
+                            ]}
+                            onPress={() => setStatusFilter(filter.value)}
+                        >
+                            <Text style={[
+                                styles.filterText,
+                                statusFilter === filter.value && styles.filterTextActive
+                            ]}>
+                                {filter.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+
             <FlatList
-                data={receptions}
+                data={filteredReceptions}
                 keyExtractor={(item) => item._id}
                 renderItem={renderItem}
                 contentContainerStyle={styles.listContent}
@@ -126,6 +262,19 @@ export default function ReceptionScreen() {
                     }}
                 />
             </Modal>
+
+            <FinishModal
+                visible={finishModalVisible}
+                onClose={() => setFinishModalVisible(false)}
+                onConfirm={handleFinishWork}
+                loading={actionLoading}
+            />
+
+            <PiecesModal
+                visible={piecesModalVisible}
+                onClose={() => setPiecesModalVisible(false)}
+                productId={selectedProductId}
+            />
         </View>
     );
 }
@@ -161,6 +310,35 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 12,
     },
+    filterContainer: {
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e2e8f0',
+    },
+    filterScroll: {
+        padding: 16,
+        gap: 8,
+    },
+    filterButton: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 99,
+        backgroundColor: '#f1f5f9',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    filterButtonActive: {
+        backgroundColor: '#2563eb',
+        borderColor: '#2563eb',
+    },
+    filterText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#64748b',
+    },
+    filterTextActive: {
+        color: '#fff',
+    },
     receptionBadge: {
         backgroundColor: '#f1f5f9',
         paddingHorizontal: 10,
@@ -180,10 +358,12 @@ const styles = StyleSheet.create({
     statusReceived: { backgroundColor: '#eff6ff' },
     statusInProgress: { backgroundColor: '#fefce8' },
     statusFinished: { backgroundColor: '#f0fdf4' },
+    statusReturn: { backgroundColor: '#fff1f2' },
     statusText: { fontSize: 11, fontWeight: '700' },
     statusReceivedText: { color: '#2563eb' },
     statusInProgressText: { color: '#854d0e' },
     statusFinishedText: { color: '#166534' },
+    statusReturnText: { color: '#be123c' },
     clientName: {
         fontSize: 18,
         fontWeight: '700',
@@ -202,6 +382,53 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: '#f1f5f9',
         paddingTop: 12,
+        marginBottom: 16,
+    },
+    actionRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    actionButtonStart: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#2563eb',
+        paddingVertical: 12,
+        borderRadius: 12,
+        gap: 8,
+    },
+    actionButtonPieces: {
+        flex: 0.8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#eff6ff',
+        paddingVertical: 12,
+        borderRadius: 12,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
+    },
+    actionButtonTextPieces: {
+        color: '#2563eb',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    actionButtonFinish: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#166534',
+        paddingVertical: 12,
+        borderRadius: 12,
+        gap: 8,
+    },
+    actionButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700',
     },
     infoRow: {
         flexDirection: 'row',

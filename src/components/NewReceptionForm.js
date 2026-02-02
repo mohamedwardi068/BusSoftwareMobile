@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useData } from '../hooks/useData';
+import { useAuth } from '../context/AuthContext';
 import SearchableSelect from './SearchableSelect';
 import api from '../api/axios';
 
@@ -23,6 +24,7 @@ const POSITIONS = [
 
 export default function NewReceptionForm({ onClose, onSuccess }) {
     const { clients, etriers, loading, fetchAppData } = useData();
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
         client: null,
         etrier: null,
@@ -41,11 +43,17 @@ export default function NewReceptionForm({ onClose, onSuccess }) {
             return;
         }
 
+        if (!user) {
+            Alert.alert('Erreur', 'Session utilisateur introuvable');
+            return;
+        }
+
         setSubmitting(true);
         try {
             await api.post('/receptions', {
                 client: formData.client._id,
                 etrier: formData.etrier._id,
+                user: user._id || user.id, // Support both formats
                 position: formData.position,
                 observation: formData.observation,
                 etat: 'recus',
@@ -53,7 +61,7 @@ export default function NewReceptionForm({ onClose, onSuccess }) {
             onSuccess();
         } catch (error) {
             console.error('Error submitting reception:', error);
-            Alert.alert('Erreur', 'Échec de l\'enregistrement');
+            Alert.alert('Erreur', error.response?.data?.error || 'Échec de l\'enregistrement');
         } finally {
             setSubmitting(false);
         }
