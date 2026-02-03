@@ -19,15 +19,17 @@ export default function LoginScreen() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
     const { login } = useAuth();
     const router = useRouter();
 
     const handleLogin = async () => {
         if (!username || !password) {
-            Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+            setError('Veuillez remplir tous les champs');
             return;
         }
 
+        setError(''); // Clear previous errors
         setIsSubmitting(true);
         const result = await login(username, password);
         setIsSubmitting(false);
@@ -35,7 +37,7 @@ export default function LoginScreen() {
         if (result.success) {
             router.replace('/(tabs)/reception');
         } else {
-            Alert.alert('Erreur', result.message);
+            setError(result.message || 'Échec de connexion');
         }
     };
 
@@ -46,21 +48,30 @@ export default function LoginScreen() {
         >
             <View style={styles.inner}>
                 <View style={styles.header}>
-                    <View style={styles.logoContainer}>
-                        <LogIn size={48} color="#2563eb" />
+                    <View style={styles.customLogoContainer}>
+                        <Text style={styles.logoBusText}>BUS</Text>
+                        <Text style={styles.logoServicesText}>SERVICES</Text>
                     </View>
-                    <Text style={styles.title}>Bus Manager</Text>
-                    <Text style={styles.subtitle}>Connectez-vous pour continuer (v2.0)</Text>
+                    <Text style={styles.subtitle}>Connectez-vous pour continuer (v1.0)</Text>
                 </View>
 
                 <View style={styles.form}>
+                    {error ? (
+                        <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                    ) : null}
+
                     <View style={styles.inputContainer}>
                         <Text style={styles.label}>Nom d'utilisateur</Text>
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, error && styles.inputError]}
                             placeholder="Ex: admin"
                             value={username}
-                            onChangeText={setUsername}
+                            onChangeText={(text) => {
+                                setUsername(text);
+                                setError('');
+                            }}
                             autoCapitalize="none"
                             placeholderTextColor="#94a3b8"
                         />
@@ -69,10 +80,13 @@ export default function LoginScreen() {
                     <View style={styles.inputContainer}>
                         <Text style={styles.label}>Mot de passe</Text>
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, error && styles.inputError]}
                             placeholder="••••••••"
                             value={password}
-                            onChangeText={setPassword}
+                            onChangeText={(text) => {
+                                setPassword(text);
+                                setError('');
+                            }}
                             secureTextEntry
                             placeholderTextColor="#94a3b8"
                         />
@@ -112,25 +126,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 40,
     },
-    logoContainer: {
-        width: 80,
-        height: 80,
-        backgroundColor: '#eff6ff',
-        borderRadius: 20,
-        justifyContent: 'center',
+    customLogoContainer: {
         alignItems: 'center',
         marginBottom: 16,
-        shadowColor: '#2563eb',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 2,
     },
-    title: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: '#1e293b',
-        marginBottom: 8,
+    logoBusText: {
+        fontSize: 48,
+        fontWeight: '700',
+        color: '#1aa3d9',
+        lineHeight: 52, // Tighten line height
+    },
+    logoServicesText: {
+        fontSize: 42,
+        fontWeight: '600',
+        color: '#1a2a4f',
+        marginTop: -5, // Slight overlap/tight spacing like in SVG
     },
     subtitle: {
         fontSize: 16,
@@ -147,6 +157,20 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 15,
         elevation: 5,
+    },
+    errorContainer: {
+        backgroundColor: '#fef2f2',
+        borderWidth: 1,
+        borderColor: '#fecaca',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 16,
+    },
+    errorText: {
+        color: '#ef4444',
+        fontSize: 14,
+        fontWeight: '600',
+        textAlign: 'center',
     },
     inputContainer: {
         marginBottom: 20,
@@ -165,6 +189,11 @@ const styles = StyleSheet.create({
         color: '#1e293b',
         borderWidth: 1,
         borderColor: '#e2e8f0',
+    },
+    inputError: {
+        borderColor: '#fecaca',
+        backgroundColor: '#fef2f2',
+        color: '#ef4444',
     },
     button: {
         backgroundColor: '#2563eb',

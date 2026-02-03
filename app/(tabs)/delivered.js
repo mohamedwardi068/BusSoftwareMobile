@@ -13,6 +13,7 @@ import {
 import { CheckSquare, Hash, Clock, User, ChevronRight, PackageCheck, RotateCcw, Search, X as CloseIcon } from 'lucide-react-native';
 import api from '../../src/api/axios';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
+import ReturnModal from '../../src/components/ReturnModal';
 import { useAuth } from '../../src/context/AuthContext';
 
 export default function DeliveredScreen() {
@@ -39,11 +40,11 @@ export default function DeliveredScreen() {
                 isDelivered(r)
             );
 
-            // Sort by updatedAt or date (most recent first)
+            // Sort by updatedAt or date (First In, First Out - Oldest First)
             const sorted = filtered.sort((a, b) => {
                 const dateA = new Date(a.updatedAt || a.date);
                 const dateB = new Date(b.updatedAt || b.date);
-                return dateB - dateA;
+                return dateA - dateB;
             });
 
             setProducts(sorted);
@@ -64,34 +65,39 @@ export default function DeliveredScreen() {
         fetchDeliveredProducts();
     };
 
-    const handleReturn = (id) => {
-        Alert.alert(
-            "Retour de produit livré",
-            "Voulez-vous traiter le retour de ce produit immédiatement ?",
-            [
-                { text: "Annuler", style: "cancel" },
-                {
-                    text: "Confirmer",
-                    style: "destructive",
-                    onPress: async () => {
-                        setActionLoading(true);
-                        try {
-                            // Logic from web: approve + complete return for admins
-                            await api.patch(`/receptions/${id}/approve-return`);
-                            await api.post(`/receptions/${id}/complete-return`);
+    const [returnModalVisible, setReturnModalVisible] = useState(false);
+    const [selectedReturnId, setSelectedReturnId] = useState(null);
 
-                            Alert.alert('Succès', 'Retour finalisé avec succès');
-                            fetchDeliveredProducts();
-                        } catch (error) {
-                            console.error('Return from delivered error:', error);
-                            Alert.alert('Erreur', 'Échec du traitement du retour');
-                        } finally {
-                            setActionLoading(false);
-                        }
-                    }
-                }
-            ]
-        );
+    const handleReturn = (id) => {
+        setSelectedReturnId(id);
+        setReturnModalVisible(true);
+    };
+
+    const handleConfirmReturn = async (reason) => {
+        if (!selectedReturnId) return;
+
+        setActionLoading(true);
+        try {
+            if (isAdmin) {
+                // Admin flow: Approve + Complete
+                await api.patch(`/receptions/${selectedReturnId}/approve-return`);
+                await api.post(`/receptions/${selectedReturnId}/complete-return`);
+                Alert.alert('Succès', 'Retour finalisé avec succès');
+            } else {
+                // User flow: Request return
+                await api.post(`/receptions/${selectedReturnId}/request-return`, { reason });
+                Alert.alert('Succès', 'Demande de retour envoyée avec succès');
+            }
+
+            fetchDeliveredProducts();
+        } catch (error) {
+            console.error('Return error:', error);
+            Alert.alert('Erreur', isAdmin ? 'Échec du traitement du retour' : 'Échec de la demande de retour');
+        } finally {
+            setActionLoading(false);
+            setReturnModalVisible(false);
+            setSelectedReturnId(null);
+        }
     };
 
     const handleOpenDetail = (product) => {
@@ -130,15 +136,17 @@ export default function DeliveredScreen() {
                         <Text style={styles.clientName}>{item.client?.name || 'Client inconnu'}</Text>
                         <Text style={styles.etrierModel}>{item.etrier?.carModel || 'Modèle inconnu'}</Text>
                     </View>
-                    {isAdmin && !item.isReturned ? (
+                    {isAdmin && (
                         <TouchableOpacity
-                            style={styles.returnIconBtn}
-                            onPress={() => handleReturn(item._id)}
+                            style={[
+                                styles.returnIconBtn,
+                                item.isReturned && styles.returnIconBtnDisabled
+                            ]}
+                            onPress={() => !item.isReturned && handleReturn(item._id)}
+                            disabled={item.isReturned}
                         >
-                            <RotateCcw size={20} color="#ef4444" />
+                            <RotateCcw size={20} color={item.isReturned ? "#94a3b8" : "#ef4444"} />
                         </TouchableOpacity>
-                    ) : (
-                        <ChevronRight size={18} color="#cbd5e1" />
                     )}
                 </View>
 
@@ -218,6 +226,14 @@ export default function DeliveredScreen() {
                 product={selectedProduct}
                 onClose={() => setDetailVisible(false)}
             />
+
+            <ReturnModal
+                visible={returnModalVisible}
+                onClose={() => setReturnModalVisible(false)}
+                onConfirm={handleConfirmReturn}
+                loading={actionLoading}
+                isAdmin={isAdmin}
+            />
         </View>
     );
 }
@@ -294,6 +310,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: 8,
+    },
+    returnIconBtnDisabled: {
+        backgroundColor: '#cbd5e1', // Darker grey
     },
     serialText: {
         fontSize: 12,

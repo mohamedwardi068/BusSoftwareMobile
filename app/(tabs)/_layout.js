@@ -1,6 +1,6 @@
 import { Tabs, useRouter } from 'expo-router';
 import { Package, ClipboardList, LogOut, Settings2, Users, CheckSquare, BarChart3 } from 'lucide-react-native';
-import { TouchableOpacity, Alert, Platform } from 'react-native';
+import { TouchableOpacity, Alert, Platform, View, Text } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 
 export default function TabLayout() {
@@ -40,11 +40,21 @@ export default function TabLayout() {
                 backgroundColor: '#fff',
             },
             headerShadowVisible: false,
-            headerTitleStyle: {
-                fontWeight: 'bold',
-                fontSize: 20,
-                color: '#1e293b',
-            },
+            headerTitle: () => (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{
+                        fontSize: 20,
+                        fontWeight: '700',
+                        color: '#1aa3d9',
+                        marginRight: 4
+                    }}>BUS</Text>
+                    <Text style={{
+                        fontSize: 20,
+                        fontWeight: '700',
+                        color: '#1a2a4f'
+                    }}>SERVICES</Text>
+                </View>
+            ),
             headerRight: () => (
                 <TouchableOpacity
                     onPress={handleLogout}
@@ -57,7 +67,6 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="reception"
                 options={{
-                    title: 'Réception',
                     tabBarLabel: 'Réception',
                     tabBarIcon: ({ color }) => <Package size={24} color={color} />,
                 }}
@@ -65,7 +74,6 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="finished"
                 options={{
-                    title: 'Produits Finis',
                     tabBarLabel: 'Finis',
                     tabBarIcon: ({ color }) => <ClipboardList size={24} color={color} />,
                 }}
@@ -74,7 +82,6 @@ export default function TabLayout() {
                 name="delivered"
                 options={{
                     href: isAdmin ? "/delivered" : null,
-                    title: 'Produits Livrés',
                     tabBarLabel: 'Livrés',
                     tabBarIcon: ({ color }) => <CheckSquare size={24} color={color} />,
                 }}
@@ -83,7 +90,6 @@ export default function TabLayout() {
                 name="recapitulatif"
                 options={{
                     href: isAdmin ? "/recapitulatif" : null,
-                    title: 'Récapitulatif',
                     tabBarLabel: 'Récap',
                     tabBarIcon: ({ color }) => <BarChart3 size={24} color={color} />,
                 }}
@@ -92,7 +98,6 @@ export default function TabLayout() {
                 name="settings"
                 options={{
                     href: isAdmin ? "/settings" : null,
-                    title: 'Paramètres',
                     tabBarLabel: 'Paramètres',
                     tabBarIcon: ({ color }) => <Settings2 size={24} color={color} />,
                 }}

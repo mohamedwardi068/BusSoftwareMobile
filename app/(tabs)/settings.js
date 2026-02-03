@@ -131,7 +131,7 @@ export default function ParametresScreen() {
             </View>
 
             <View style={styles.footer}>
-                <Text style={styles.versionText}>Bus Manager Mobile v2.1</Text>
+                <Text style={styles.versionText}>Bus Manager Mobile v1.1</Text>
                 <Text style={styles.copyrightText}>© 2026 Bus Software</Text>
             </View>
 

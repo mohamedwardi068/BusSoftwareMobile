@@ -9,11 +9,13 @@ import {
     RefreshControl,
     Alert,
     Platform,
+    TextInput
 } from 'react-native';
-import { ClipboardList, CheckCircle, RotateCcw, Hash, Clock, User, ChevronRight } from 'lucide-react-native';
+import { ClipboardList, CheckCircle, RotateCcw, Hash, Clock, User, ChevronRight, Search, X as CloseIcon } from 'lucide-react-native';
 import api from '../../src/api/axios';
 import { useAuth } from '../../src/context/AuthContext';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
+import ReturnModal from '../../src/components/ReturnModal';
 
 export default function FinishedScreen() {
     const { user: currentUser } = useAuth();
@@ -40,11 +42,11 @@ export default function FinishedScreen() {
                 (p.etat === 'finit' || p.isReturned) && !isDelivered(p)
             );
 
-            // Sort: Non-returned first (finit), then returned
+            // Sort: First In, First Out (Oldest First) - primarily by date
             const sorted = filtered.sort((a, b) => {
-                const orderA = a.isReturned ? 2 : 1;
-                const orderB = b.isReturned ? 2 : 1;
-                return orderA - orderB;
+                const dateA = new Date(a.updatedAt || a.date);
+                const dateB = new Date(b.updatedAt || b.date);
+                return dateA - dateB;
             });
 
             setProducts(sorted);
@@ -59,6 +61,26 @@ export default function FinishedScreen() {
     useEffect(() => {
         fetchFinishedProducts();
     }, []);
+
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const getSerialNumber = (extra) => {
+        if (!extra) return 'SANS-SÉRIE';
+        return typeof extra.serialNumber === 'string'
+            ? extra.serialNumber
+            : extra.serialNumber?.serialNumber || 'SANS-SÉRIE';
+    };
+
+    const filteredProducts = products.filter(item => {
+        const searchLower = searchTerm.toLowerCase();
+        const clientName = (item.client?.name || '').toLowerCase();
+        const serialNumber = getSerialNumber(item.extra).toLowerCase();
+        const carModel = (item.etrier?.carModel || '').toLowerCase();
+
+        return clientName.includes(searchLower) ||
+            serialNumber.includes(searchLower) ||
+            carModel.includes(searchLower);
+    });
 
     const onRefresh = () => {
         setRefreshing(true);
@@ -93,31 +115,39 @@ export default function FinishedScreen() {
         );
     };
 
+    const [returnModalVisible, setReturnModalVisible] = useState(false);
+    const [selectedReturnId, setSelectedReturnId] = useState(null);
+
     const handleReturn = (id) => {
-        Alert.alert(
-            "Retour",
-            "Demander le retour de ce produit ?",
-            [
-                { text: "Annuler", style: "cancel" },
-                {
-                    text: "Confirmer",
-                    style: "destructive",
-                    onPress: async () => {
-                        setActionLoading(true);
-                        try {
-                            await api.post(`/receptions/${id}/request-return`, { reason: 'Retour mobile' });
-                            // For simplicity on mobile, we can also auto-approve or just wait for admin
-                            // But usually, common return flow is requested -> approved -> back to work
-                            fetchFinishedProducts();
-                        } catch (error) {
-                            Alert.alert('Erreur', 'Échec de la demande de retour');
-                        } finally {
-                            setActionLoading(false);
-                        }
-                    }
-                }
-            ]
-        );
+        setSelectedReturnId(id);
+        setReturnModalVisible(true);
+    };
+
+    const handleConfirmReturn = async (reason) => {
+        if (!selectedReturnId) return;
+
+        setActionLoading(true);
+        try {
+            if (isAdmin) {
+                // Admin flow: Approve + Complete
+                await api.patch(`/receptions/${selectedReturnId}/approve-return`);
+                await api.post(`/receptions/${selectedReturnId}/complete-return`);
+                Alert.alert('Succès', 'Retour finalisé avec succès');
+            } else {
+                // User flow: Request return
+                await api.post(`/receptions/${selectedReturnId}/request-return`, { reason });
+                Alert.alert('Succès', 'Demande de retour envoyée avec succès');
+            }
+
+            fetchFinishedProducts();
+        } catch (error) {
+            console.error('Return error:', error);
+            Alert.alert('Erreur', isAdmin ? 'Échec du traitement du retour' : 'Échec de la demande de retour');
+        } finally {
+            setActionLoading(false);
+            setReturnModalVisible(false);
+            setSelectedReturnId(null);
+        }
     };
 
     const handleOpenDetail = (product) => {
@@ -134,7 +164,7 @@ export default function FinishedScreen() {
             <View style={styles.cardHeader}>
                 <View style={styles.serialBadge}>
                     <Hash size={14} color="#2563eb" />
-                    <Text style={styles.serialText}>{item.extra?.serialNumber || 'SANS-SÉRIE'}</Text>
+                    <Text style={styles.serialText}>{getSerialNumber(item.extra)}</Text>
                 </View>
                 <View style={[
                     styles.statusBadge,
@@ -187,12 +217,17 @@ export default function FinishedScreen() {
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={styles.actionButtonReturn}
+                            style={[
+                                styles.actionButtonReturn,
+                                (actionLoading || item.isReturned || isDelivered(item) || justDelivered.has(item._id)) && styles.actionButtonDisabled
+                            ]}
                             onPress={() => handleReturn(item._id)}
                             disabled={actionLoading || item.isReturned || isDelivered(item) || justDelivered.has(item._id)}
                         >
                             <RotateCcw size={18} color="#fff" />
-                            <Text style={styles.actionButtonText}>Retour</Text>
+                            <Text style={styles.actionButtonText}>
+                                {item.isReturned ? 'Retourné' : 'Retour'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -210,8 +245,26 @@ export default function FinishedScreen() {
 
     return (
         <View style={styles.container}>
+            <View style={styles.searchHeader}>
+                <View style={styles.searchContainer}>
+                    <Search size={20} color="#94a3b8" />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Rechercher par série, client..."
+                        value={searchTerm}
+                        onChangeText={setSearchTerm}
+                        autoCapitalize="none"
+                    />
+                    {searchTerm.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchTerm('')}>
+                            <CloseIcon size={20} color="#94a3b8" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
+
             <FlatList
-                data={products}
+                data={filteredProducts}
                 keyExtractor={(item) => item._id}
                 renderItem={renderItem}
                 contentContainerStyle={styles.listContent}
@@ -231,6 +284,14 @@ export default function FinishedScreen() {
                 product={selectedProduct}
                 onClose={() => setDetailVisible(false)}
             />
+
+            <ReturnModal
+                visible={returnModalVisible}
+                onClose={() => setReturnModalVisible(false)}
+                onConfirm={handleConfirmReturn}
+                loading={actionLoading}
+                isAdmin={isAdmin}
+            />
         </View>
     );
 }
@@ -247,6 +308,28 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    // Search Styles
+    searchHeader: {
+        backgroundColor: '#fff',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f1f5f9',
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        gap: 8,
+    },
+    searchInput: {
+        flex: 1,
+        paddingVertical: 10,
+        fontSize: 15,
+        color: '#1e293b',
     },
     card: {
         backgroundColor: '#fff',
@@ -348,6 +431,10 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
         fontWeight: '700',
+    },
+    actionButtonDisabled: {
+        opacity: 0.8, // Less transparent
+        backgroundColor: '#64748b', // Darker slate
     },
     emptyState: {
         padding: 80,

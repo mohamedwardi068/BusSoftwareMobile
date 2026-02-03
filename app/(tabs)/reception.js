@@ -8,10 +8,12 @@ import {
     ActivityIndicator,
     RefreshControl,
     Modal,
+    Platform,
+    TextInput,
     ScrollView,
-    Alert,
+    Alert
 } from 'react-native';
-import { Plus, Package, Clock, CheckCircle2, PlayCircle, History, Filter, Wrench } from 'lucide-react-native';
+import { Plus, Package, Clock, CheckCircle2, PlayCircle, History, Filter, Wrench, Search, X as CloseIcon } from 'lucide-react-native';
 import api from '../../src/api/axios';
 import { useAuth } from '../../src/context/AuthContext';
 import NewReceptionForm from '../../src/components/NewReceptionForm';
@@ -48,7 +50,14 @@ export default function ReceptionScreen() {
 
             // If not admin, we could potentially filter on the server, but for now we filter here
             // to ensure they only see what they need.
-            setReceptions(data);
+            // First In, First Out (Oldest First)
+            const sorted = data.sort((a, b) => {
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+                return dateA - dateB;
+            });
+
+            setReceptions(sorted);
         } catch (error) {
             console.error('Error fetching receptions:', error);
         } finally {
@@ -99,9 +108,23 @@ export default function ReceptionScreen() {
         }
     };
 
+    const [searchTerm, setSearchTerm] = useState('');
+
     const filteredReceptions = receptions.filter(item => {
         // Hide finished products that aren't returned (they go to another tab)
         if (item.etat === 'finit' && !item.isReturned) return false;
+
+        // Search Filter
+        const searchLower = searchTerm.toLowerCase();
+        const clientName = (item.client?.name || '').toLowerCase();
+        const carModel = (item.etrier?.carModel || '').toLowerCase();
+        const receptionNum = (item.receptionNumber || '').toLowerCase();
+
+        const matchesSearch = clientName.includes(searchLower) ||
+            carModel.includes(searchLower) ||
+            receptionNum.includes(searchLower);
+
+        if (!matchesSearch) return false;
 
         if (statusFilter === 'all') return true;
         if (statusFilter === 'retour') return item.isReturned;
@@ -202,6 +225,24 @@ export default function ReceptionScreen() {
 
     return (
         <View style={styles.container}>
+            <View style={styles.searchHeader}>
+                <View style={styles.searchContainer}>
+                    <Search size={20} color="#94a3b8" />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Rechercher par client, modèle..."
+                        value={searchTerm}
+                        onChangeText={setSearchTerm}
+                        autoCapitalize="none"
+                    />
+                    {searchTerm.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchTerm('')}>
+                            <CloseIcon size={20} color="#94a3b8" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
+
             {/* Status Filter Tabs */}
             <View style={styles.filterContainer}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
@@ -293,6 +334,28 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    // Search Styles
+    searchHeader: {
+        backgroundColor: '#fff',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f1f5f9',
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        gap: 8,
+    },
+    searchInput: {
+        flex: 1,
+        paddingVertical: 10,
+        fontSize: 15,
+        color: '#1e293b',
     },
     card: {
         backgroundColor: '#fff',
