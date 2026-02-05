@@ -23,7 +23,7 @@ export default function FinishModal({ visible, onClose, onConfirm, loading, prod
             .filter((sn) => sn && sn.toUpperCase().startsWith('SBS'));
 
         if (allSerials.length === 0) {
-            return { lastSerial: 'Aucun', suggestedSerial: 'SBS25ET0001' };
+            return { lastSerial: 'Aucun', suggestedSerial: `${SERIAL_PREFIX}0001` };
         }
 
         let maxNum = 0;
