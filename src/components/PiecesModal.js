@@ -12,7 +12,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
-import { X, Search, Barcode, Plus, Minus, Trash2, Check, Save, Camera } from 'lucide-react-native';
+import { X, Search, Barcode, Plus, Minus, Trash2, Check, Save, Camera, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../api/axios';
@@ -26,6 +26,11 @@ export default function PiecesModal({ visible, onClose, productId }) {
     const [scanning, setScanning] = useState(false);
     const [permission, requestPermission] = useCameraPermissions();
     const [recognizing, setRecognizing] = useState(false);
+    
+    // Return tracking
+    const [isReturned, setIsReturned] = useState(false);
+    const [oldPieces, setOldPieces] = useState([]);
+    const [showOldPieces, setShowOldPieces] = useState(false);
 
     // Fetch pieces and current selection
     useEffect(() => {
@@ -45,6 +50,7 @@ export default function PiecesModal({ visible, onClose, productId }) {
             // Get current reception details to see added pieces
             const receptionRes = await api.get(`/receptions/${productId}`);
             const reception = receptionRes.data;
+            setIsReturned(!!reception.isReturned);
 
             if (reception.extra?.pieces && reception.extra?.pieceCounters) {
                 const initialAdded = reception.extra.pieces.map(pieceId => {
@@ -59,6 +65,21 @@ export default function PiecesModal({ visible, onClose, productId }) {
                 setAddedPieces(initialAdded);
             } else {
                 setAddedPieces([]);
+            }
+
+            if (reception.extra?.oldPieces && reception.extra?.oldPieceCounters) {
+                const initialOld = reception.extra.oldPieces.map(pieceId => {
+                    const piece = piecesData.find(p => p._id === pieceId);
+                    return {
+                        id: pieceId,
+                        designation: piece?.designation || 'Pièce inconnue',
+                        referenceArticle: piece?.referenceArticle || 'N/A',
+                        quantity: reception.extra.oldPieceCounters[pieceId] || 1
+                    };
+                });
+                setOldPieces(initialOld);
+            } else {
+                setOldPieces([]);
             }
         } catch (error) {
             console.error('Error fetching piece data:', error);
@@ -123,10 +144,20 @@ export default function PiecesModal({ visible, onClose, productId }) {
                 return acc;
             }, {});
 
-            await api.patch(`/receptions/${productId}/extra`, {
+            const payload = {
                 pieces,
                 pieceCounters
-            });
+            };
+
+            if (isReturned && oldPieces.length > 0) {
+                payload.oldPieces = oldPieces.map(p => p.id);
+                payload.oldPieceCounters = oldPieces.reduce((acc, curr) => {
+                    acc[curr.id] = curr.quantity;
+                    return acc;
+                }, {});
+            }
+
+            await api.patch(`/receptions/${productId}/extra`, payload);
             onClose();
         } catch (error) {
             console.error('Error saving pieces:', error);
@@ -372,6 +403,38 @@ export default function PiecesModal({ visible, onClose, productId }) {
                             )}
                         </View>
 
+                        {/* Old Pieces Section for Returns */}
+                        {isReturned && oldPieces.length > 0 && (
+                            <View style={styles.oldPiecesSection}>
+                                <TouchableOpacity 
+                                    style={styles.oldPiecesHeader}
+                                    onPress={() => setShowOldPieces(!showOldPieces)}
+                                >
+                                    <View>
+                                        <Text style={styles.oldPiecesTitle}>Anciennes pièces ({oldPieces.length})</Text>
+                                        <Text style={styles.oldPiecesSubtitle}>Pièces remplacées précédemment</Text>
+                                    </View>
+                                    {showOldPieces ? <ChevronUp size={20} color="#64748b" /> : <ChevronDown size={20} color="#64748b" />}
+                                </TouchableOpacity>
+                                
+                                {showOldPieces && (
+                                    <View style={styles.oldPiecesList}>
+                                        {oldPieces.map(item => (
+                                            <View key={`old-${item.id}`} style={[styles.pieceCard, styles.oldPieceCard]}>
+                                                <View style={styles.pieceInfo}>
+                                                    <Text style={[styles.pieceName, styles.oldPieceText]}>{item.designation}</Text>
+                                                    <Text style={[styles.pieceRef, styles.oldPieceText]}>{item.referenceArticle}</Text>
+                                                </View>
+                                                <View style={styles.quantityControls}>
+                                                    <Text style={[styles.qtyText, styles.oldPieceText]}>{item.quantity}</Text>
+                                                </View>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
+                            </View>
+                        )}
+
                         {/* Save Button */}
                         <TouchableOpacity
                             style={[styles.saveButton, saveLoading && styles.disabledButton]}
@@ -603,6 +666,40 @@ const styles = StyleSheet.create({
     },
     loader: {
         marginTop: 40,
+    },
+    oldPiecesSection: {
+        marginTop: 16,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 16,
+        padding: 16,
+    },
+    oldPiecesHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    oldPiecesTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#475569',
+    },
+    oldPiecesSubtitle: {
+        fontSize: 12,
+        color: '#94a3b8',
+        marginTop: 2,
+    },
+    oldPiecesList: {
+        marginTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#e2e8f0',
+        paddingTop: 12,
+    },
+    oldPieceCard: {
+        backgroundColor: '#e2e8f0',
+        marginBottom: 8,
+    },
+    oldPieceText: {
+        color: '#64748b',
     },
     scannerWrapper: {
         ...StyleSheet.absoluteFillObject,

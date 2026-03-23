@@ -111,8 +111,8 @@ export default function ReceptionScreen() {
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredReceptions = receptions.filter(item => {
-        // Hide finished products that aren't returned (they go to another tab)
-        if (item.etat === 'finit' && !item.isReturned) return false;
+        // Hide all finished products (including repaired returns)
+        if (item.etat === 'finit') return false;
 
         // Search Filter
         const searchLower = searchTerm.toLowerCase();
@@ -310,6 +310,7 @@ export default function ReceptionScreen() {
                 onConfirm={handleFinishWork}
                 loading={actionLoading}
                 products={receptions}
+                productId={selectedProductId}
             />
 
             <PiecesModal

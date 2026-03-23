@@ -11,8 +11,20 @@ import {
 } from 'react-native';
 import { X, Hash, Sparkles } from 'lucide-react-native';
 
-export default function FinishModal({ visible, onClose, onConfirm, loading, products = [] }) {
+export default function FinishModal({ visible, onClose, onConfirm, loading, products = [], productId }) {
     const [serialNumber, setSerialNumber] = useState('');
+
+    const isReturned = React.useMemo(() => {
+        if (!productId) return false;
+        const p = products.find(prod => prod._id === productId || prod.id === productId);
+        return p ? (p.isReturned || p.returnApproved) : false;
+    }, [productId, products]);
+
+    const oldSerialNumber = React.useMemo(() => {
+        if (!productId) return '';
+        const p = products.find(prod => prod._id === productId || prod.id === productId);
+        return p?.extra?.serialNumber || p?.serialNumber || '';
+    }, [productId, products]);
 
     const yearSuffix = new Date().getFullYear().toString().slice(-2);
     const SERIAL_PREFIX = `SBS${yearSuffix}ET`;
@@ -47,9 +59,15 @@ export default function FinishModal({ visible, onClose, onConfirm, loading, prod
 
     React.useEffect(() => {
         if (visible) {
-            setSerialNumber(suggestedSerial);
+            if (isReturned) {
+                setSerialNumber(oldSerialNumber);
+            } else {
+                setSerialNumber(suggestedSerial);
+            }
+        } else {
+            setSerialNumber('');
         }
-    }, [visible]);
+    }, [visible, isReturned, oldSerialNumber, suggestedSerial]);
 
     const handleConfirm = () => {
         onConfirm(serialNumber.trim() || null);
@@ -73,23 +91,32 @@ export default function FinishModal({ visible, onClose, onConfirm, loading, prod
 
                     <View style={styles.body}>
                         <Text style={styles.label}>Numéro de série</Text>
-                        <View style={styles.inputWrapper}>
+                        <View style={[styles.inputWrapper, isReturned && { backgroundColor: '#e2e8f0' }]}>
                             <Hash size={20} color="#94a3b8" style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, isReturned && { color: '#64748b' }]}
                                 placeholder="Laisser vide pour auto-générer"
-                                value={serialNumber}
+                                value={serialNumber || (isReturned ? 'Aucun' : '')}
                                 onChangeText={setSerialNumber}
                                 autoCapitalize="characters"
                                 placeholderTextColor="#94a3b8"
+                                editable={!isReturned}
                             />
                         </View>
-                        <Text style={styles.hint}>
-                            Dernier : {lastSerial} | Suggestion : {suggestedSerial}
-                        </Text>
-                        <Text style={styles.hint}>
-                            Si vous laissez ce champ vide, le système utilisera la suggestion ci-dessus.
-                        </Text>
+                        {isReturned ? (
+                            <Text style={[styles.hint, { color: '#b45309', fontWeight: 'bold' }]}>
+                                Ce produit est un retour. Le numéro de série ne peut pas être modifié.
+                            </Text>
+                        ) : (
+                            <>
+                                <Text style={styles.hint}>
+                                    Dernier : {lastSerial} | Suggestion : {suggestedSerial}
+                                </Text>
+                                <Text style={styles.hint}>
+                                    Si vous laissez ce champ vide, le système utilisera la suggestion ci-dessus.
+                                </Text>
+                            </>
+                        )}
 
                         <TouchableOpacity
                             style={[styles.confirmButton, loading && styles.buttonDisabled]}

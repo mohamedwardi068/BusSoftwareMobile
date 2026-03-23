@@ -37,9 +37,9 @@ export default function FinishedScreen() {
             const response = await api.get('/receptions');
             const data = Array.isArray(response.data) ? response.data : response.data.data || [];
 
-            // Filter: etat is 'finit' or 'isReturned' is true, and NOT delivered
+            // Filter: etat is 'finit', and NOT delivered
             const filtered = data.filter(p =>
-                (p.etat === 'finit' || p.isReturned) && !isDelivered(p)
+                p.etat === 'finit' && !isDelivered(p)
             );
 
             // Sort: First In, First Out (Oldest First) - primarily by date
