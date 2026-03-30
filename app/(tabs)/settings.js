@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import AddUserModal from '../../src/components/AddUserModal';
 import DeleteUserModal from '../../src/components/DeleteUserModal';
 import DeleteAccountModal from '../../src/components/DeleteAccountModal';
+import AddPieceModal from '../../src/components/AddPieceModal';
 
 export default function ParametresScreen() {
     const { user, logout } = useAuth();
@@ -21,6 +22,7 @@ export default function ParametresScreen() {
     const [addUserVisible, setAddUserVisible] = useState(false);
     const [deleteUserVisible, setDeleteUserVisible] = useState(false);
     const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
+    const [addPieceVisible, setAddPieceVisible] = useState(false);
 
     const handleLogout = () => {
         Alert.alert(
@@ -100,7 +102,7 @@ export default function ParametresScreen() {
                             icon={Wrench}
                             title="Pièces de rechange"
                             subtitle="Inventaire et codes-barres"
-                            onPress={() => Alert.alert("Infos", "La gestion complète sera disponible prochainement.")}
+                            onPress={() => setAddPieceVisible(true)}
                         />
                     </View>
                 </View>
@@ -149,6 +151,11 @@ export default function ParametresScreen() {
             <DeleteAccountModal
                 visible={deleteAccountVisible}
                 onClose={() => setDeleteAccountVisible(false)}
+            />
+            <AddPieceModal
+                visible={addPieceVisible}
+                onClose={() => setAddPieceVisible(false)}
+                onSuccess={() => { }}
             />
         </ScrollView>
     );
