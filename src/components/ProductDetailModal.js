@@ -9,7 +9,7 @@ import {
     Dimensions,
     ActivityIndicator,
 } from 'react-native';
-import { X, Package, User, Clock, Hash, MapPin, Wrench, CheckCircle2 } from 'lucide-react-native';
+import { X, Package, User, Clock, Hash, MapPin, Wrench, CheckCircle2, ChevronUp, ChevronDown } from 'lucide-react-native';
 import api from '../api/axios';
 
 const { height } = Dimensions.get('window');
@@ -17,6 +17,11 @@ const { height } = Dimensions.get('window');
 export default function ProductDetailModal({ visible, product, onClose }) {
     const [allPieces, setAllPieces] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [openHistoryIndex, setOpenHistoryIndex] = useState(null);
+
+    useEffect(() => {
+        if (!visible) setOpenHistoryIndex(null);
+    }, [visible]);
 
     useEffect(() => {
         if (visible && product) {
@@ -118,7 +123,7 @@ export default function ProductDetailModal({ visible, product, onClose }) {
                         {/* Section: Pièces Utilisées */}
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>Pièces de rechange</Text>
+                                <Text style={styles.sectionTitle}>Pièces actuelles</Text>
                                 <View style={styles.countBadge}>
                                     <Text style={styles.countText}>{resolvedPieces.length}</Text>
                                 </View>
@@ -144,6 +149,69 @@ export default function ProductDetailModal({ visible, product, onClose }) {
                             ) : (
                                 <View style={styles.emptyPieces}>
                                     <Text style={styles.emptyPiecesText}>Aucune pièce enregistrée</Text>
+                                </View>
+                            )}
+
+                            {/* Past return cycles */}
+                            {product.pieceHistory && product.pieceHistory.length > 0 && (
+                                <View style={{ marginTop: 24 }}>
+                                    <View style={styles.sectionHeader}>
+                                        <Text style={styles.sectionTitle}>Historique des retours</Text>
+                                    </View>
+                                    {[...product.pieceHistory].reverse().map((cycle, reversedIdx) => {
+                                        const idx = product.pieceHistory.length - 1 - reversedIdx;
+                                        const cycleNumber = idx + 1;
+                                        const isOpen = openHistoryIndex === idx;
+                                        const cyclePieces = (cycle.pieces || []).map(pieceId => {
+                                            const pieceInfo = allPieces.find(p => p._id === pieceId);
+                                            return {
+                                                id: pieceId,
+                                                name: pieceInfo?.designation || 'Pièce inconnue',
+                                                ref: pieceInfo?.referenceArticle || 'N/A',
+                                                quantity: cycle.pieceCounters?.[pieceId] || 1,
+                                            };
+                                        });
+
+                                        return (
+                                            <View key={idx} style={styles.historyCycleCard}>
+                                                <TouchableOpacity
+                                                    style={styles.historyCycleHeader}
+                                                    onPress={() => setOpenHistoryIndex(isOpen ? null : idx)}
+                                                >
+                                                    <View>
+                                                        <Text style={styles.historyCycleTitle}>Retour #{cycleNumber}</Text>
+                                                        {cycle.returnedAt && (
+                                                            <Text style={styles.historyCycleDate}>
+                                                                {new Date(cycle.returnedAt).toLocaleDateString('fr-FR')}
+                                                            </Text>
+                                                        )}
+                                                        <Text style={styles.historyCycleMeta}>
+                                                            {cyclePieces.length} pièce{cyclePieces.length > 1 ? 's' : ''}
+                                                        </Text>
+                                                    </View>
+                                                    {isOpen
+                                                        ? <ChevronUp size={20} color="#64748b" />
+                                                        : <ChevronDown size={20} color="#64748b" />}
+                                                </TouchableOpacity>
+
+                                                {isOpen && (
+                                                    <View style={styles.historyCycleBody}>
+                                                        {cyclePieces.map(item => (
+                                                            <View key={`h-${idx}-${item.id}`} style={styles.pieceItemHistory}>
+                                                                <View style={styles.pieceInfo}>
+                                                                    <Text style={[styles.pieceName, { color: '#475569' }]}>{item.name}</Text>
+                                                                    <Text style={[styles.pieceRef, { color: '#94a3b8' }]}>Réf: {item.ref}</Text>
+                                                                </View>
+                                                                <View style={[styles.qtyContainer, { backgroundColor: '#fef3c7' }]}>
+                                                                    <Text style={[styles.qtyText, { color: '#d97706' }]}>x{item.quantity}</Text>
+                                                                </View>
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                )}
+                                            </View>
+                                        );
+                                    })}
                                 </View>
                             )}
                         </View>
@@ -316,5 +384,49 @@ const styles = StyleSheet.create({
     emptyPiecesText: {
         color: '#94a3b8',
         fontSize: 14,
+    },
+    // History Styles
+    historyCycleCard: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        marginBottom: 10,
+        overflow: 'hidden',
+    },
+    historyCycleHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+    },
+    historyCycleTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#334155',
+    },
+    historyCycleDate: {
+        fontSize: 12,
+        color: '#94a3b8',
+        marginTop: 2,
+    },
+    historyCycleMeta: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#64748b',
+        marginTop: 4,
+    },
+    historyCycleBody: {
+        borderTopWidth: 1,
+        borderTopColor: '#e2e8f0',
+        paddingHorizontal: 16,
+        paddingBottom: 8,
+    },
+    pieceItemHistory: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
     }
 });

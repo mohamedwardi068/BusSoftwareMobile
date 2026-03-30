@@ -219,14 +219,14 @@ export default function FinishedScreen() {
                         <TouchableOpacity
                             style={[
                                 styles.actionButtonReturn,
-                                (actionLoading || item.isReturned || isDelivered(item) || justDelivered.has(item._id)) && styles.actionButtonDisabled
+                                (actionLoading || (item.returnStatus === 'requested' || item.returnStatus === 'approved') || isDelivered(item) || justDelivered.has(item._id)) && styles.actionButtonDisabled
                             ]}
                             onPress={() => handleReturn(item._id)}
-                            disabled={actionLoading || item.isReturned || isDelivered(item) || justDelivered.has(item._id)}
+                            disabled={actionLoading || (item.returnStatus === 'requested' || item.returnStatus === 'approved') || isDelivered(item) || justDelivered.has(item._id)}
                         >
                             <RotateCcw size={18} color="#fff" />
                             <Text style={styles.actionButtonText}>
-                                {item.isReturned ? 'Retourné' : 'Retour'}
+                                {(item.returnStatus === 'requested' || item.returnStatus === 'approved') ? 'En cours...' : item.isReturned ? 'Nouveau retour' : 'Retour'}
                             </Text>
                         </TouchableOpacity>
                     </View>

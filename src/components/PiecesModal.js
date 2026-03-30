@@ -31,6 +31,8 @@ export default function PiecesModal({ visible, onClose, productId }) {
     const [isReturned, setIsReturned] = useState(false);
     const [oldPieces, setOldPieces] = useState([]);
     const [showOldPieces, setShowOldPieces] = useState(false);
+    const [pieceHistory, setPieceHistory] = useState([]); // all past return cycles
+    const [openHistoryIndex, setOpenHistoryIndex] = useState(null); // expanded cycle index
 
     // Fetch pieces and current selection
     useEffect(() => {
@@ -67,7 +69,25 @@ export default function PiecesModal({ visible, onClose, productId }) {
                 setAddedPieces([]);
             }
 
-            if (reception.extra?.oldPieces && reception.extra?.oldPieceCounters) {
+            // Load full piece history (all past return cycles)
+            if (reception.pieceHistory && reception.pieceHistory.length > 0) {
+                const historyMapped = reception.pieceHistory.map(cycle => ({
+                    returnedAt: cycle.returnedAt,
+                    pieces: (cycle.pieces || []).map(pieceId => {
+                        const piece = piecesData.find(p => p._id === pieceId);
+                        return {
+                            id: pieceId,
+                            designation: piece?.designation || 'Pièce inconnue',
+                            referenceArticle: piece?.referenceArticle || 'N/A',
+                            quantity: cycle.pieceCounters?.[pieceId] || 1,
+                        };
+                    }),
+                }));
+                setPieceHistory(historyMapped);
+                const last = historyMapped[historyMapped.length - 1];
+                setOldPieces(last.pieces);
+            } else if (reception.extra?.oldPieces && reception.extra?.oldPieceCounters) {
+                // Legacy support
                 const initialOld = reception.extra.oldPieces.map(pieceId => {
                     const piece = piecesData.find(p => p._id === pieceId);
                     return {
@@ -77,8 +97,10 @@ export default function PiecesModal({ visible, onClose, productId }) {
                         quantity: reception.extra.oldPieceCounters[pieceId] || 1
                     };
                 });
+                setPieceHistory([{ returnedAt: null, pieces: initialOld }]);
                 setOldPieces(initialOld);
             } else {
+                setPieceHistory([]);
                 setOldPieces([]);
             }
         } catch (error) {
@@ -403,35 +425,57 @@ export default function PiecesModal({ visible, onClose, productId }) {
                             )}
                         </View>
 
-                        {/* Old Pieces Section for Returns */}
-                        {isReturned && oldPieces.length > 0 && (
-                            <View style={styles.oldPiecesSection}>
-                                <TouchableOpacity 
-                                    style={styles.oldPiecesHeader}
-                                    onPress={() => setShowOldPieces(!showOldPieces)}
-                                >
-                                    <View>
-                                        <Text style={styles.oldPiecesTitle}>Anciennes pièces ({oldPieces.length})</Text>
-                                        <Text style={styles.oldPiecesSubtitle}>Pièces remplacées précédemment</Text>
-                                    </View>
-                                    {showOldPieces ? <ChevronUp size={20} color="#64748b" /> : <ChevronDown size={20} color="#64748b" />}
-                                </TouchableOpacity>
-                                
-                                {showOldPieces && (
-                                    <View style={styles.oldPiecesList}>
-                                        {oldPieces.map(item => (
-                                            <View key={`old-${item.id}`} style={[styles.pieceCard, styles.oldPieceCard]}>
-                                                <View style={styles.pieceInfo}>
-                                                    <Text style={[styles.pieceName, styles.oldPieceText]}>{item.designation}</Text>
-                                                    <Text style={[styles.pieceRef, styles.oldPieceText]}>{item.referenceArticle}</Text>
+                        {/* Piece History Section for Returns */}
+                        {isReturned && pieceHistory.length > 0 && (
+                            <View style={styles.historySection}>
+                                <Text style={styles.historySectionTitle}>
+                                    Historique des retours ({pieceHistory.length} cycle{pieceHistory.length > 1 ? 's' : ''})
+                                </Text>
+
+                                {[...pieceHistory].reverse().map((cycle, reversedIdx) => {
+                                    const idx = pieceHistory.length - 1 - reversedIdx;
+                                    const cycleNumber = idx + 1;
+                                    const isOpen = openHistoryIndex === idx;
+                                    return (
+                                        <View key={idx} style={styles.historyCycleCard}>
+                                            <TouchableOpacity
+                                                style={styles.historyCycleHeader}
+                                                onPress={() => setOpenHistoryIndex(isOpen ? null : idx)}
+                                            >
+                                                <View>
+                                                    <Text style={styles.historyCycleTitle}>Retour #{cycleNumber}</Text>
+                                                    {cycle.returnedAt && (
+                                                        <Text style={styles.historyCycleDate}>
+                                                            {new Date(cycle.returnedAt).toLocaleDateString('fr-FR')}
+                                                        </Text>
+                                                    )}
+                                                    <Text style={styles.historyCycleMeta}>
+                                                        {cycle.pieces.length} pièce{cycle.pieces.length > 1 ? 's' : ''}
+                                                    </Text>
                                                 </View>
-                                                <View style={styles.quantityControls}>
-                                                    <Text style={[styles.qtyText, styles.oldPieceText]}>{item.quantity}</Text>
+                                                {isOpen
+                                                    ? <ChevronUp size={18} color="#64748b" />
+                                                    : <ChevronDown size={18} color="#64748b" />}
+                                            </TouchableOpacity>
+
+                                            {isOpen && (
+                                                <View style={styles.historyCycleBody}>
+                                                    {cycle.pieces.map(item => (
+                                                        <View key={`h-${idx}-${item.id}`} style={[styles.pieceCard, styles.oldPieceCard]}>
+                                                            <View style={styles.pieceInfo}>
+                                                                <Text style={[styles.pieceName, styles.oldPieceText]}>{item.designation}</Text>
+                                                                <Text style={[styles.pieceRef, styles.oldPieceText]}>{item.referenceArticle}</Text>
+                                                            </View>
+                                                            <View style={styles.quantityControls}>
+                                                                <Text style={[styles.qtyText, styles.oldPieceText]}>{item.quantity}</Text>
+                                                            </View>
+                                                        </View>
+                                                    ))}
                                                 </View>
-                                            </View>
-                                        ))}
-                                    </View>
-                                )}
+                                            )}
+                                        </View>
+                                    );
+                                })}
                             </View>
                         )}
 
@@ -700,6 +744,51 @@ const styles = StyleSheet.create({
     },
     oldPieceText: {
         color: '#64748b',
+    },
+    // History styles
+    historySection: {
+        marginTop: 16,
+        gap: 10,
+    },
+    historySectionTitle: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#64748b',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 4,
+    },
+    historyCycleCard: {
+        backgroundColor: '#f1f5f9',
+        borderRadius: 14,
+        overflow: 'hidden',
+        marginBottom: 8,
+    },
+    historyCycleHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 14,
+    },
+    historyCycleTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#334155',
+    },
+    historyCycleDate: {
+        fontSize: 12,
+        color: '#94a3b8',
+        marginTop: 2,
+    },
+    historyCycleMeta: {
+        fontSize: 12,
+        color: '#64748b',
+        marginTop: 1,
+    },
+    historyCycleBody: {
+        borderTopWidth: 1,
+        borderTopColor: '#e2e8f0',
+        padding: 12,
     },
     scannerWrapper: {
         ...StyleSheet.absoluteFillObject,

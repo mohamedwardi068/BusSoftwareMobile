@@ -140,12 +140,18 @@ export default function DeliveredScreen() {
                         <TouchableOpacity
                             style={[
                                 styles.returnIconBtn,
-                                item.isReturned && styles.returnIconBtnDisabled
+                                (item.returnStatus === 'requested' || item.returnStatus === 'approved') && styles.returnIconBtnDisabled
                             ]}
-                            onPress={() => !item.isReturned && handleReturn(item._id)}
-                            disabled={item.isReturned}
+                            onPress={() => {
+                                const inProgress = item.returnStatus === 'requested' || item.returnStatus === 'approved';
+                                if (!inProgress) handleReturn(item._id);
+                            }}
+                            disabled={item.returnStatus === 'requested' || item.returnStatus === 'approved'}
                         >
-                            <RotateCcw size={20} color={item.isReturned ? "#94a3b8" : "#ef4444"} />
+                            <RotateCcw
+                                size={20}
+                                color={(item.returnStatus === 'requested' || item.returnStatus === 'approved') ? '#94a3b8' : '#ef4444'}
+                            />
                         </TouchableOpacity>
                     )}
                 </View>
