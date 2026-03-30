@@ -12,9 +12,8 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
-import { X, Search, Barcode, Plus, Minus, Trash2, Check, Save, Camera, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { X, Search, Barcode, Plus, Minus, Trash2, Check, Save, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
 import api from '../api/axios';
 
 export default function PiecesModal({ visible, onClose, productId }) {
@@ -25,7 +24,6 @@ export default function PiecesModal({ visible, onClose, productId }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [scanning, setScanning] = useState(false);
     const [permission, requestPermission] = useCameraPermissions();
-    const [recognizing, setRecognizing] = useState(false);
     
     // Return tracking
     const [isReturned, setIsReturned] = useState(false);
@@ -193,104 +191,14 @@ export default function PiecesModal({ visible, onClose, productId }) {
         if (!permission?.granted) {
             const res = await requestPermission();
             if (!res.granted) {
-                Alert.alert('Permission', 'L\'accès à la caméra est requis pour scanner.');
+                Alert.alert('Permission', "L'accès à la caméra est requis pour scanner.");
                 return;
             }
         }
         setScanning(true);
     };
 
-    const handleCameraRecognition = async () => {
-        try {
-            // Request camera permission
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert('Permission', 'L\'accès à la caméra est requis pour la reconnaissance.');
-                return;
-            }
 
-            // Launch camera
-            const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ['images'],
-                allowsEditing: false,
-                quality: 0.3, // Lower quality to reduce file size
-            });
-
-            if (result.canceled) {
-                return;
-            }
-
-            setRecognizing(true);
-
-            // Prepare image for upload
-            const uri = result.assets[0].uri;
-            const filename = uri.split('/').pop();
-            const match = /\.(\w+)$/.exec(filename);
-            const type = match ? `image/${match[1]}` : 'image/jpeg';
-
-            const formData = new FormData();
-            formData.append('image', {
-                uri,
-                name: filename,
-                type,
-            });
-
-            // Send to recognition endpoint
-            const response = await api.post('/pieces/recognize', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-
-            if (response.data.referenceArticle) {
-                // Piece recognized!
-                const confidence = (response.data.confidence * 100).toFixed(1);
-                const piece = response.data.piece;
-
-                Alert.alert(
-                    '✅ Pièce reconnue!',
-                    `${piece.designation}\nRéférence: ${piece.referenceArticle}\nConfiance: ${confidence}%`,
-                    [
-                        { text: 'Annuler', style: 'cancel' },
-                        {
-                            text: 'Ajouter',
-                            onPress: () => handleAddPiece(piece)
-                        }
-                    ]
-                );
-            } else {
-                // Piece not recognized - offer retry
-                Alert.alert(
-                    '❌ Pièce non reconnue',
-                    'Aucune pièce n\'a pu être identifiée. Voulez-vous réessayer avec une autre photo?',
-                    [
-                        { text: 'Annuler', style: 'cancel' },
-                        {
-                            text: 'Réessayer',
-                            onPress: () => handleCameraRecognition()
-                        }
-                    ]
-                );
-            }
-        } catch (error) {
-            console.error('Error recognizing piece:', error);
-            const errorMessage = error.response?.data?.error || 'Impossible de reconnaître la pièce.';
-
-            Alert.alert(
-                'Erreur',
-                errorMessage,
-                [
-                    { text: 'Annuler', style: 'cancel' },
-                    {
-                        text: 'Réessayer',
-                        onPress: () => handleCameraRecognition()
-                    }
-                ]
-            );
-        } finally {
-            setRecognizing(false);
-        }
-    };
 
     const filteredList = searchTerm.length > 0
         ? allPieces.filter(p =>
@@ -336,17 +244,7 @@ export default function PiecesModal({ visible, onClose, productId }) {
                                     </TouchableOpacity>
                                 )}
                             </View>
-                            <TouchableOpacity
-                                style={styles.cameraButton}
-                                onPress={handleCameraRecognition}
-                                disabled={recognizing}
-                            >
-                                {recognizing ? (
-                                    <ActivityIndicator size="small" color="#fff" />
-                                ) : (
-                                    <Camera size={24} color="#fff" />
-                                )}
-                            </TouchableOpacity>
+
                             <TouchableOpacity
                                 style={styles.scanButton}
                                 onPress={startScanning}
@@ -573,14 +471,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#1e293b',
     },
-    cameraButton: {
-        backgroundColor: '#16a34a',
-        width: 50,
-        height: 50,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
+
     scanButton: {
         backgroundColor: '#2563eb',
         width: 50,
