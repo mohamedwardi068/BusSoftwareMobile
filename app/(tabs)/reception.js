@@ -13,12 +13,13 @@ import {
     ScrollView,
     Alert
 } from 'react-native';
-import { Plus, Package, Clock, CheckCircle2, PlayCircle, History, Filter, Wrench, Search, X as CloseIcon } from 'lucide-react-native';
+import { Plus, Package, Clock, CheckCircle2, PlayCircle, History, Filter, Wrench, Search, X as CloseIcon, Mic } from 'lucide-react-native';
 import api from '../../src/api/axios';
 import { useAuth } from '../../src/context/AuthContext';
 import NewReceptionForm from '../../src/components/NewReceptionForm';
 import FinishModal from '../../src/components/FinishModal';
 import PiecesModal from '../../src/components/PiecesModal';
+import { Audio } from 'expo-av';
 
 const STATUS_FILTERS = [
     { label: 'Tous', value: 'all' },
@@ -42,6 +43,82 @@ export default function ReceptionScreen() {
     const [finishModalVisible, setFinishModalVisible] = useState(false);
     const [piecesModalVisible, setPiecesModalVisible] = useState(false);
     const [selectedProductId, setSelectedProductId] = useState(null);
+    
+    // Agent Mode audio recording
+    const [recording, setRecording] = useState(null);
+    const [isAgentProcessing, setIsAgentProcessing] = useState(false);
+    const isStartingRef = React.useRef(false);
+
+    async function startRecording() {
+        if (isStartingRef.current || isAgentProcessing || recording) return;
+        
+        try {
+            isStartingRef.current = true;
+            const { status } = await Audio.requestPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission requise', 'Permission microphone refusée.');
+                return;
+            }
+
+            await Audio.setAudioModeAsync({
+                allowsRecordingIOS: true,
+                playsInSilentModeIOS: true,
+            });
+
+            const { recording: newRecording } = await Audio.Recording.createAsync(
+                Audio.RecordingOptionsPresets.HIGH_QUALITY
+            );
+            setRecording(newRecording);
+        } catch (err) {
+            console.error('Failed to start recording', err);
+            Alert.alert('Erreur', 'Impossible de démarrer l\'enregistrement');
+        } finally {
+            isStartingRef.current = false;
+        }
+    }
+
+    async function stopRecording() {
+        // Guard against rapid release
+        if (isStartingRef.current) {
+            setTimeout(stopRecording, 200);
+            return;
+        }
+
+        if (!recording || isAgentProcessing) return;
+        
+        setIsAgentProcessing(true);
+        const currentRecording = recording;
+        setRecording(null);
+
+        try {
+            await currentRecording.stopAndUnloadAsync();
+            await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+            const uri = currentRecording.getURI();
+
+            if (!uri) return;
+
+            const formData = new FormData();
+            formData.append('audio', {
+                uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
+                type: 'audio/m4a',
+                name: 'audio.m4a',
+            });
+            formData.append('user', currentUser._id || currentUser.id);
+
+            const response = await api.post('/agent/command', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            
+            Alert.alert('Succès', response.data?.message || 'Réception ajoutée avec succès.');
+            fetchReceptions();
+        } catch (error) {
+            console.error('Failed to process agent command', error);
+            const errorMsg = error.response?.data?.error || error.message || 'Échec de la commande vocale';
+            Alert.alert('Erreur Agent', errorMsg);
+        } finally {
+            setIsAgentProcessing(false);
+        }
+    }
 
     const fetchReceptions = async () => {
         try {
@@ -282,12 +359,28 @@ export default function ReceptionScreen() {
                 }
             />
 
-            <TouchableOpacity
-                style={styles.fab}
-                onPress={() => setModalVisible(true)}
-            >
-                <Plus size={32} color="#fff" />
-            </TouchableOpacity>
+            <View style={styles.fabContainer}>
+                {isAgentProcessing ? (
+                    <View style={styles.fabAgent}>
+                        <ActivityIndicator color="#fff" />
+                    </View>
+                ) : (
+                    <TouchableOpacity
+                        style={[styles.fabAgent, recording && styles.fabAgentRecording]}
+                        onPressIn={startRecording}
+                        onPressOut={stopRecording}
+                    >
+                        <Mic size={24} color="#fff" />
+                    </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                    style={styles.fab}
+                    onPress={() => setModalVisible(true)}
+                >
+                    <Plus size={32} color="#fff" />
+                </TouchableOpacity>
+            </View>
 
             <Modal
                 animationType="slide"
@@ -509,10 +602,31 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#475569',
     },
-    fab: {
+    fabContainer: {
         position: 'absolute',
         bottom: 24,
         right: 24,
+        alignItems: 'center',
+        gap: 16,
+    },
+    fabAgent: {
+        backgroundColor: '#8b5cf6', // purple color for AI agent
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#8b5cf6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    fabAgentRecording: {
+        backgroundColor: '#dc2626', // Red when recording
+        transform: [{ scale: 1.1 }],
+    },
+    fab: {
         backgroundColor: '#2563eb',
         width: 64,
         height: 64,
