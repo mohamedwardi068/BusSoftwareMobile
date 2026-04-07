@@ -49,8 +49,10 @@ export default function LoginScreen() {
             <View style={styles.inner}>
                 <View style={styles.header}>
                     <View style={styles.customLogoContainer}>
-                        <Text style={styles.logoBusText}>BUS</Text>
-                        <Text style={styles.logoServicesText}>SERVICES</Text>
+                        <Image 
+                            source={require('../assets/icon.png')} 
+                            style={{ width: 260, height: 260, resizeMode: 'contain', marginBottom: -50, marginTop: -30 }}
+                        />
                     </View>
                     <Text style={styles.subtitle}>Connectez-vous pour continuer (v1.0)</Text>
                 </View>
@@ -124,23 +126,12 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: 30,
     },
     customLogoContainer: {
         alignItems: 'center',
-        marginBottom: 16,
-    },
-    logoBusText: {
-        fontSize: 48,
-        fontWeight: '700',
-        color: '#1aa3d9',
-        lineHeight: 52, // Tighten line height
-    },
-    logoServicesText: {
-        fontSize: 42,
-        fontWeight: '600',
-        color: '#1a2a4f',
-        marginTop: -5, // Slight overlap/tight spacing like in SVG
+        marginBottom: 0,
+        zIndex: 10,
     },
     subtitle: {
         fontSize: 16,
