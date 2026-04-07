@@ -15,6 +15,7 @@ import {
     ChevronDown,
     ChevronUp,
     Hash,
+    DollarSign
 } from 'lucide-react-native';
 import api from '../../src/api/axios';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
@@ -61,7 +62,8 @@ export default function RecapitulatifScreen() {
                     groups[monthYear] = {
                         products: [],
                         finitCount: 0,
-                        retourneCount: 0
+                        retourneCount: 0,
+                        totalCost: 0
                     };
                 }
 
@@ -72,6 +74,7 @@ export default function RecapitulatifScreen() {
 
                 if (type === "finit") groups[monthYear].finitCount++;
                 if (type === "retourné") groups[monthYear].retourneCount++;
+                groups[monthYear].totalCost += Number(rec.extra?.totalCost) || 0;
             });
 
             const sortedGroups = Object.entries(groups)
@@ -87,6 +90,7 @@ export default function RecapitulatifScreen() {
                         count: groupData.products.length,
                         finitCount: groupData.finitCount,
                         retourneCount: groupData.retourneCount,
+                        totalCost: groupData.totalCost,
                         prime,
                     };
                 })
@@ -158,7 +162,10 @@ export default function RecapitulatifScreen() {
                         </View>
                     </View>
                     <View style={styles.monthRight}>
-                        <Text style={styles.monthPrime}>{item.prime.toFixed(2)} DT</Text>
+                        <View style={{ alignItems: 'flex-end', marginRight: 4 }}>
+                            <Text style={styles.monthCost}>{item.totalCost || 0} DT</Text>
+                            <Text style={styles.monthPrime}>{item.prime.toFixed(2)} DT</Text>
+                        </View>
                         {isExpanded ? <ChevronUp size={20} color="#64748b" /> : <ChevronDown size={20} color="#64748b" />}
                     </View>
                 </TouchableOpacity>
@@ -234,6 +241,13 @@ export default function RecapitulatifScreen() {
                         subtitle="Cumul des bonus"
                         icon={BarChart3}
                         color="#7c3aed"
+                    />
+                    <StatusCard
+                        title="Coût Mensuel"
+                        value={`${currentMonthStats.totalCost || 0} DT`}
+                        subtitle="Coût de ce mois"
+                        icon={DollarSign}
+                        color="#ea580c"
                     />
                 </View>
 
@@ -379,10 +393,16 @@ const styles = StyleSheet.create({
     monthRight: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 8,
+    },
+    monthCost: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#ea580c',
+        marginBottom: 2,
     },
     monthPrime: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '800',
         color: '#2563eb',
     },

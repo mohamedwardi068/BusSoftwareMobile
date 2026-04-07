@@ -11,11 +11,12 @@ import {
     Platform,
     TextInput
 } from 'react-native';
-import { ClipboardList, CheckCircle, RotateCcw, Hash, Clock, User, ChevronRight, Search, X as CloseIcon } from 'lucide-react-native';
+import { ClipboardList, CheckCircle, RotateCcw, Hash, Clock, User, ChevronRight, Search, X as CloseIcon, DollarSign, Pencil } from 'lucide-react-native';
 import api from '../../src/api/axios';
 import { useAuth } from '../../src/context/AuthContext';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
 import ReturnModal from '../../src/components/ReturnModal';
+import EditCostModal from '../../src/components/EditCostModal';
 
 export default function FinishedScreen() {
     const { user: currentUser } = useAuth();
@@ -29,6 +30,10 @@ export default function FinishedScreen() {
 
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [detailVisible, setDetailVisible] = useState(false);
+
+    const [editCostModalVisible, setEditCostModalVisible] = useState(false);
+    const [selectedCostId, setSelectedCostId] = useState(null);
+    const [selectedCurrentCost, setSelectedCurrentCost] = useState('');
 
     const isDelivered = (item) => item.delivered === 'yes' || item.delivered === true;
 
@@ -150,6 +155,30 @@ export default function FinishedScreen() {
         }
     };
 
+    const handleEditCost = (id, currentCost) => {
+        setSelectedCostId(id);
+        setSelectedCurrentCost(currentCost);
+        setEditCostModalVisible(true);
+    };
+
+    const handleConfirmCostEdit = async (newCost) => {
+        if (!selectedCostId) return;
+
+        setActionLoading(true);
+        try {
+            await api.patch(`/receptions/${selectedCostId}/extra`, { totalCost: newCost });
+            Alert.alert('Succès', 'Coût mis à jour avec succès');
+            fetchFinishedProducts();
+        } catch (error) {
+            console.error('Edit cost error:', error);
+            Alert.alert('Erreur', 'Échec de la mise à jour du coût');
+        } finally {
+            setActionLoading(false);
+            setEditCostModalVisible(false);
+            setSelectedCostId(null);
+        }
+    };
+
     const handleOpenDetail = (product) => {
         setSelectedProduct(product);
         setDetailVisible(true);
@@ -198,6 +227,23 @@ export default function FinishedScreen() {
                         <Text style={styles.metaText}>
                             {new Date(item.updatedAt || item.date).toLocaleDateString('fr-FR')}
                         </Text>
+                    </View>
+                </View>
+                
+                <View style={[styles.metaInfo, { marginTop: 0, paddingTop: 0, borderTopWidth: 0, marginBottom: 16 }]}>
+                    <View style={styles.infoRow}>
+                        <DollarSign size={16} color="#059669" />
+                        <Text style={[styles.metaText, { color: '#059669', fontWeight: 'bold' }]}>
+                            {item.extra?.totalCost ? `${item.extra.totalCost} DT` : '-'}
+                        </Text>
+                        {isAdmin && (
+                            <TouchableOpacity 
+                                style={{ marginLeft: 8, padding: 4, backgroundColor: '#f1f5f9', borderRadius: 6 }}
+                                onPress={() => handleEditCost(item._id, item.extra?.totalCost)}
+                            >
+                                <Pencil size={14} color="#64748b" />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
 
@@ -291,6 +337,14 @@ export default function FinishedScreen() {
                 onConfirm={handleConfirmReturn}
                 loading={actionLoading}
                 isAdmin={isAdmin}
+            />
+
+            <EditCostModal
+                visible={editCostModalVisible}
+                onClose={() => setEditCostModalVisible(false)}
+                onConfirm={handleConfirmCostEdit}
+                loading={actionLoading}
+                currentCost={selectedCurrentCost}
             />
         </View>
     );
