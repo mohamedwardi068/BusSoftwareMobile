@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     FlatList,
+    RefreshControl,
 } from 'react-native';
 import {
     BarChart3,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react-native';
 import api from '../../src/api/axios';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
+import { useFocusEffect } from 'expo-router';
 
 const monthNames = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -27,6 +29,7 @@ const monthNames = [
 
 export default function RecapitulatifScreen() {
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [monthlyGroups, setMonthlyGroups] = useState([]);
     const [totalProducts, setTotalProducts] = useState(0);
     const [totalPrime, setTotalPrime] = useState(0);
@@ -115,12 +118,20 @@ export default function RecapitulatifScreen() {
             console.error('Recap fetch error:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
-    useEffect(() => {
+    useFocusEffect(
+        useCallback(() => {
+            fetchData();
+        }, [])
+    );
+
+    const onRefresh = () => {
+        setRefreshing(true);
         fetchData();
-    }, []);
+    };
 
     const toggleMonth = (id) => {
         setExpandedMonths(prev => ({ ...prev, [id]: !prev[id] }));
@@ -219,7 +230,13 @@ export default function RecapitulatifScreen() {
 
     return (
         <View style={styles.container}>
-            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+                style={styles.scrollView} 
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            >
                 <View style={styles.statsGrid}>
                     <StatusCard
                         title="Total Général"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -17,6 +17,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
 import ReturnModal from '../../src/components/ReturnModal';
 import EditCostModal from '../../src/components/EditCostModal';
+import { useFocusEffect } from 'expo-router';
 
 export default function FinishedScreen() {
     const { user: currentUser } = useAuth();
@@ -63,9 +64,11 @@ export default function FinishedScreen() {
         }
     };
 
-    useEffect(() => {
-        fetchFinishedProducts();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchFinishedProducts();
+        }, [])
+    );
 
     const [searchTerm, setSearchTerm] = useState('');
 
