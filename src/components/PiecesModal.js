@@ -20,13 +20,18 @@ import api from '../api/axios';
 export default function PiecesModal({ visible, onClose, productId }) {
     const [allPieces, setAllPieces] = useState([]);
     const [addedPieces, setAddedPieces] = useState([]);
+    const [initialAddedPieces, setInitialAddedPieces] = useState([]);
     const [loading, setLoading] = useState(false);
     const [saveLoading, setSaveLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [scanning, setScanning] = useState(false);
     const [permission, requestPermission] = useCameraPermissions();
     const [recognizing, setRecognizing] = useState(false);
-    
+
+    // Delete confirmation
+    const [pieceToDelete, setPieceToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     // Return tracking
     const [isReturned, setIsReturned] = useState(false);
     const [oldPieces, setOldPieces] = useState([]);
@@ -65,8 +70,10 @@ export default function PiecesModal({ visible, onClose, productId }) {
                     };
                 });
                 setAddedPieces(initialAdded);
+                setInitialAddedPieces(initialAdded);
             } else {
                 setAddedPieces([]);
+                setInitialAddedPieces([]);
             }
 
             // Load full piece history (all past return cycles)
@@ -138,8 +145,35 @@ export default function PiecesModal({ visible, onClose, productId }) {
     };
 
     const removePiece = (id) => {
-        setAddedPieces(prev => prev.filter(p => p.id !== id));
+        const piece = addedPieces.find(p => p.id === id);
+        if (piece) setPieceToDelete(piece);
     };
+
+    const confirmDelete = async () => {
+        if (!pieceToDelete || !productId) return;
+        setIsDeleting(true);
+        const updatedList = addedPieces.filter(p => p.id !== pieceToDelete.id);
+        const pieces = updatedList.map(p => p.id);
+        const pieceCounters = updatedList.reduce((acc, curr) => {
+            acc[curr.id] = curr.quantity;
+            return acc;
+        }, {});
+        try {
+            await api.patch(`/receptions/${productId}/extra`, { pieces, pieceCounters });
+            setAddedPieces(updatedList);
+            setInitialAddedPieces(updatedList);
+            setPieceToDelete(null);
+        } catch (error) {
+            Alert.alert('Erreur', 'Impossible de supprimer la pièce');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const hasChanges = (() => {
+        const normalize = (arr) => [...arr].map(p => `${p.id}:${p.quantity}`).sort().join('|');
+        return normalize(addedPieces) !== normalize(initialAddedPieces);
+    })();
 
     const handleBarcodeScanned = ({ data }) => {
         setScanning(false);
@@ -481,9 +515,9 @@ export default function PiecesModal({ visible, onClose, productId }) {
 
                         {/* Save Button */}
                         <TouchableOpacity
-                            style={[styles.saveButton, saveLoading && styles.disabledButton]}
+                            style={[styles.saveButton, (!hasChanges || saveLoading) && styles.disabledButton, hasChanges && styles.saveButtonActive]}
                             onPress={handleSave}
-                            disabled={saveLoading}
+                            disabled={!hasChanges || saveLoading}
                         >
                             {saveLoading ? (
                                 <ActivityIndicator color="#fff" />
@@ -519,6 +553,48 @@ export default function PiecesModal({ visible, onClose, productId }) {
                     )}
                 </View>
             </View>
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={!!pieceToDelete}
+                onRequestClose={() => !isDeleting && setPieceToDelete(null)}
+            >
+                <View style={styles.deleteOverlay}>
+                    <View style={styles.deleteContainer}>
+                        <View style={styles.deleteIconWrapper}>
+                            <Trash2 size={32} color="#ef4444" />
+                        </View>
+                        <Text style={styles.deleteTitle}>Confirmer la suppression</Text>
+                        <Text style={styles.deleteMessage}>
+                            Voulez-vous vraiment supprimer{' '}
+                            <Text style={styles.deletePieceName}>"{pieceToDelete?.designation}"</Text>
+                            {' '}? Cette action est irréversible.
+                        </Text>
+                        <View style={styles.deleteActions}>
+                            <TouchableOpacity
+                                style={styles.deleteCancelBtn}
+                                onPress={() => setPieceToDelete(null)}
+                                disabled={isDeleting}
+                            >
+                                <Text style={styles.deleteCancelText}>Annuler</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.deleteConfirmBtn, isDeleting && styles.disabledButton]}
+                                onPress={confirmDelete}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? (
+                                    <ActivityIndicator color="#fff" size="small" />
+                                ) : (
+                                    <Text style={styles.deleteConfirmText}>Supprimer</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </Modal>
     );
 }
@@ -682,7 +758,7 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         flexDirection: 'row',
-        backgroundColor: '#166534',
+        backgroundColor: '#94a3b8',
         padding: 18,
         borderRadius: 16,
         justifyContent: 'center',
@@ -690,8 +766,11 @@ const styles = StyleSheet.create({
         gap: 8,
         marginTop: 12,
     },
+    saveButtonActive: {
+        backgroundColor: '#f97316',
+    },
     disabledButton: {
-        opacity: 0.6,
+        opacity: 0.7,
     },
     saveText: {
         color: '#fff',
@@ -825,5 +904,83 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
-    }
+    },
+    // Delete modal styles
+    deleteOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.65)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    deleteContainer: {
+        backgroundColor: '#fff',
+        borderRadius: 24,
+        padding: 28,
+        width: '100%',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+        elevation: 20,
+    },
+    deleteIconWrapper: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: '#fee2e2',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    deleteTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1e293b',
+        marginBottom: 10,
+        textAlign: 'center',
+    },
+    deleteMessage: {
+        fontSize: 14,
+        color: '#64748b',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 24,
+    },
+    deletePieceName: {
+        fontWeight: '700',
+        color: '#1e293b',
+    },
+    deleteActions: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    deleteCancelBtn: {
+        flex: 1,
+        padding: 16,
+        borderRadius: 14,
+        backgroundColor: '#f1f5f9',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    deleteCancelText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#475569',
+    },
+    deleteConfirmBtn: {
+        flex: 1,
+        padding: 16,
+        borderRadius: 14,
+        backgroundColor: '#ef4444',
+        alignItems: 'center',
+    },
+    deleteConfirmText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#fff',
+    },
 });
