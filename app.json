@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "BusMangerMobile",
+    "name": "PfeBSS",
     "slug": "BusMangerMobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,11 +16,16 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.pfebss.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,9 +36,16 @@
       [
         "expo-av",
         {
-          "microphonePermission": "Autoriser BusMangerMobile à accéder à votre microphone pour dicter des réceptions."
+          "microphonePermission": "Autoriser PfeBSS à accéder à votre microphone pour dicter des réceptions."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0e6b4a69-4249-4fb1-a762-a63df635be21"
+      }
+    },
+    "owner": "mohamedwardi068"
   }
 }

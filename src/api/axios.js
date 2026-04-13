@@ -4,8 +4,8 @@ import * as SecureStore from 'expo-secure-store';
 // Set this to your computer's IP if testing on a physical device locally (e.g. http://192.168.x.x:5000/api)
 // Set this to your production Render URL for deployment
 const MOBILE_DEV_IP = '192.168.100.30'; // Your local IP found via ipconfig
-// const API_URL = `https://bussoftwareback-1.onrender.com/api`;
-const API_URL = `http://${MOBILE_DEV_IP}:5000/api`;
+const API_URL = `https://busmangerback-2.onrender.com/api`;
+// const API_URL = `http://${MOBILE_DEV_IP}:5000/api`;
 
 const api = axios.create({
     baseURL: API_URL,
