@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     fabAgent: {
-        backgroundColor: '#8b5cf6', // purple color for AI agent
+        backgroundColor: '#f97316', // purple color for AI agent
         width: 52,
         height: 52,
         borderRadius: 26,

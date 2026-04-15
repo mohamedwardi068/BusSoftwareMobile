@@ -90,7 +90,7 @@ export default function FinishedScreen() {
     const handleDeliver = (id) => {
         Alert.alert(
             "Livraison",
-            "Marquer ce produit comme livré ?",
+            "Marquer cet étrier comme livré ?",
             [
                 { text: "Annuler", style: "cancel" },
                 {
@@ -274,7 +274,7 @@ export default function FinishedScreen() {
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
                         <ClipboardList size={48} color="#cbd5e1" />
-                        <Text style={styles.emptyText}>Aucun produit fini en attente</Text>
+                        <Text style={styles.emptyText}>Aucun étrier fini en attente</Text>
                     </View>
                 }
             />

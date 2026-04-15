@@ -134,7 +134,7 @@ export default function NewReceptionForm({ onClose, onSuccess }) {
                     {submitting ? (
                         <ActivityIndicator color="#fff" />
                     ) : (
-                        <Text style={styles.submitButtonText}>Enregistrer le produit</Text>
+                        <Text style={styles.submitButtonText}>Enregistrer l'étrier</Text>
                     )}
                 </TouchableOpacity>
             </ScrollView>

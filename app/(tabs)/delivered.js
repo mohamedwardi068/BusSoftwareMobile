@@ -222,7 +222,7 @@ export default function DeliveredScreen() {
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
                         <PackageCheck size={64} color="#cbd5e1" />
-                        <Text style={styles.emptyText}>Aucun produit livré</Text>
+                        <Text style={styles.emptyText}>Aucun étrier livré</Text>
                     </View>
                 }
             />

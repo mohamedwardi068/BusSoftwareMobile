@@ -1,6 +1,6 @@
 import { Tabs, useRouter } from 'expo-router';
 import { Package, ClipboardList, LogOut, Settings2, Users, CheckSquare, BarChart3 } from 'lucide-react-native';
-import { TouchableOpacity, Alert, Platform, View, Text } from 'react-native';
+import { TouchableOpacity, Alert, Platform, View, Text, Image } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 
 export default function TabLayout() {
@@ -42,17 +42,16 @@ export default function TabLayout() {
             headerShadowVisible: false,
             headerTitle: () => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Image
+                        source={require('../../assets/bus-services-logo.png')}
+                        style={{ width: 34, height: 34, marginRight: 8 }}
+                        resizeMode="contain"
+                    />
                     <Text style={{
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: '700',
-                        color: '#1aa3d9',
-                        marginRight: 4
-                    }}>BUS</Text>
-                    <Text style={{
-                        fontSize: 20,
-                        fontWeight: '700',
-                        color: '#1a2a4f'
-                    }}>SERVICES</Text>
+                        color: '#1a2a4f',
+                    }}>SOCIÉTÉ <Text style={{ color: '#f97316' }}>BUS SERVICES</Text></Text>
                 </View>
             ),
             headerRight: () => (

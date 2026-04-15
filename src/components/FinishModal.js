@@ -105,7 +105,7 @@ export default function FinishModal({ visible, onClose, onConfirm, loading, prod
                         </View>
                         {isReturned ? (
                             <Text style={[styles.hint, { color: '#b45309', fontWeight: 'bold' }]}>
-                                Ce produit est un retour. Le numéro de série ne peut pas être modifié.
+                                Cet étrier est un retour. Le numéro de série ne peut pas être modifié.
                             </Text>
                         ) : (
                             <>

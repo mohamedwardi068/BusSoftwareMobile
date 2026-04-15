@@ -48,10 +48,12 @@ export default function LoginScreen() {
         >
             <View style={styles.inner}>
                 <View style={styles.header}>
-                    <View style={styles.customLogoContainer}>
-                        <Text style={styles.logoBusText}>BUS</Text>
-                        <Text style={styles.logoServicesText}>SERVICES</Text>
-                    </View>
+                    <Image
+                        source={require('../assets/bus-services-logo.png')}
+                        style={styles.logoImage}
+                        resizeMode="contain"
+                    />
+
                     <Text style={styles.subtitle}>Connectez-vous pour continuer (v1.0)</Text>
                 </View>
 
@@ -126,21 +128,25 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 40,
     },
+    logoImage: {
+        width: 220,
+        height: 220,
+        marginBottom: 12,
+    },
     customLogoContainer: {
         alignItems: 'center',
         marginBottom: 16,
     },
     logoBusText: {
-        fontSize: 48,
+        fontSize: 22,
         fontWeight: '700',
-        color: '#1aa3d9',
-        lineHeight: 52, // Tighten line height
+        color: '#1a2a4f',
+        lineHeight: 28,
     },
     logoServicesText: {
-        fontSize: 42,
-        fontWeight: '600',
-        color: '#1a2a4f',
-        marginTop: -5, // Slight overlap/tight spacing like in SVG
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#f97316',
     },
     subtitle: {
         fontSize: 16,
