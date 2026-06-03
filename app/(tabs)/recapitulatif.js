@@ -21,6 +21,7 @@ import {
 import api from '../../src/api/axios';
 import ProductDetailModal from '../../src/components/ProductDetailModal';
 import { useFocusEffect } from 'expo-router';
+import { useAuth } from '../../src/context/AuthContext';
 
 const monthNames = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -28,6 +29,9 @@ const monthNames = [
 ];
 
 export default function RecapitulatifScreen() {
+    const { user: currentUser } = useAuth();
+    const isAdmin = currentUser?.role === 'admin';
+
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [monthlyGroups, setMonthlyGroups] = useState([]);
@@ -124,8 +128,12 @@ export default function RecapitulatifScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            fetchData();
-        }, [])
+            if (isAdmin) {
+                fetchData();
+            } else {
+                setLoading(false);
+            }
+        }, [isAdmin])
     );
 
     const onRefresh = () => {
@@ -228,6 +236,14 @@ export default function RecapitulatifScreen() {
         );
     }
 
+    if (!isAdmin) {
+        return (
+            <View style={styles.loadingContainer}>
+                <Text style={[styles.loadingText, { color: '#ef4444', fontWeight: 'bold' }]}>Accès refusé</Text>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             <ScrollView 
@@ -260,9 +276,9 @@ export default function RecapitulatifScreen() {
                         color="#7c3aed"
                     />
                     <StatusCard
-                        title="Coût Mensuel"
+                        title="Prix de vente Mensuel"
                         value={`${currentMonthStats.totalCost || 0} DT`}
-                        subtitle="Coût de ce mois"
+                        subtitle="Prix de vente de ce mois"
                         icon={DollarSign}
                         color="#ea580c"
                     />

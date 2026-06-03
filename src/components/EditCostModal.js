@@ -34,7 +34,7 @@ export default function EditCostModal({ visible, onClose, onConfirm, loading, cu
                 <View style={styles.content}>
                     <View style={styles.header}>
                         <Text style={styles.title}>
-                            Modifier le Coût Total
+                            Modifier le Prix de vente
                         </Text>
                         <TouchableOpacity onPress={onClose}>
                             <X size={24} color="#64748b" />
@@ -43,7 +43,7 @@ export default function EditCostModal({ visible, onClose, onConfirm, loading, cu
 
                     <View style={styles.body}>
                         <Text style={styles.description}>
-                            Saisissez le coût total pour ce produit (en DT).
+                            Saisissez le prix de vente pour ce produit (en DT).
                         </Text>
 
                         <View style={styles.inputWrapper}>
