@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -11,7 +11,9 @@ import {
     Platform,
     TextInput,
     ScrollView,
-    Alert
+    Alert,
+    Animated,
+    Easing,
 } from 'react-native';
 import { Plus, Package, Clock, CheckCircle2, PlayCircle, History, Filter, Wrench, Search, X as CloseIcon, Mic } from 'lucide-react-native';
 import api from '../../src/api/axios';
@@ -48,6 +50,62 @@ export default function ReceptionScreen() {
     const [recording, setRecording] = useState(null);
     const [isAgentProcessing, setIsAgentProcessing] = useState(false);
     const isStartingRef = React.useRef(false);
+
+    // Pulse animations for listening overlay
+    const pulse1 = useRef(new Animated.Value(1)).current;
+    const pulse2 = useRef(new Animated.Value(1)).current;
+    const pulse3 = useRef(new Animated.Value(1)).current;
+    const pulseOpacity1 = useRef(new Animated.Value(0.6)).current;
+    const pulseOpacity2 = useRef(new Animated.Value(0.4)).current;
+    const pulseOpacity3 = useRef(new Animated.Value(0.2)).current;
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const pulseAnimRef = useRef(null);
+    const spinAnimRef = useRef(null);
+
+    useEffect(() => {
+        if (recording) {
+            // Start pulsing rings
+            const createPulse = (anim, opacity, delay) =>
+                Animated.loop(
+                    Animated.sequence([
+                        Animated.delay(delay),
+                        Animated.parallel([
+                            Animated.timing(anim, { toValue: 2.2, duration: 1200, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+                            Animated.timing(opacity, { toValue: 0, duration: 1200, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+                        ]),
+                        Animated.parallel([
+                            Animated.timing(anim, { toValue: 1, duration: 0, useNativeDriver: true }),
+                            Animated.timing(opacity, { toValue: anim === pulse1 ? 0.6 : anim === pulse2 ? 0.4 : 0.2, duration: 0, useNativeDriver: true }),
+                        ]),
+                    ])
+                );
+            pulseAnimRef.current = Animated.parallel([
+                createPulse(pulse1, pulseOpacity1, 0),
+                createPulse(pulse2, pulseOpacity2, 400),
+                createPulse(pulse3, pulseOpacity3, 800),
+            ]);
+            pulseAnimRef.current.start();
+        } else {
+            pulseAnimRef.current?.stop();
+            pulse1.setValue(1); pulseOpacity1.setValue(0.6);
+            pulse2.setValue(1); pulseOpacity2.setValue(0.4);
+            pulse3.setValue(1); pulseOpacity3.setValue(0.2);
+        }
+    }, [recording]);
+
+    useEffect(() => {
+        if (isAgentProcessing) {
+            spinAnimRef.current = Animated.loop(
+                Animated.timing(spinValue, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true })
+            );
+            spinAnimRef.current.start();
+        } else {
+            spinAnimRef.current?.stop();
+            spinValue.setValue(0);
+        }
+    }, [isAgentProcessing]);
+
+    const spin = spinValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
     async function startRecording() {
         if (isStartingRef.current || isAgentProcessing || recording) return;
@@ -360,19 +418,14 @@ export default function ReceptionScreen() {
             />
 
             <View style={styles.fabContainer}>
-                {isAgentProcessing ? (
-                    <View style={styles.fabAgent}>
-                        <ActivityIndicator color="#fff" />
-                    </View>
-                ) : (
-                    <TouchableOpacity
-                        style={[styles.fabAgent, recording && styles.fabAgentRecording]}
-                        onPressIn={startRecording}
-                        onPressOut={stopRecording}
-                    >
-                        <Mic size={24} color="#fff" />
-                    </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                    style={[styles.fabAgent, recording && styles.fabAgentRecording, isAgentProcessing && styles.fabAgentProcessing]}
+                    onPressIn={!isAgentProcessing ? startRecording : undefined}
+                    onPressOut={!isAgentProcessing ? stopRecording : undefined}
+                    disabled={isAgentProcessing}
+                >
+                    <Mic size={24} color="#fff" />
+                </TouchableOpacity>
 
                 <TouchableOpacity
                     style={styles.fab}
@@ -381,6 +434,70 @@ export default function ReceptionScreen() {
                     <Plus size={32} color="#fff" />
                 </TouchableOpacity>
             </View>
+
+            {/* Agent Listening / Processing Overlay */}
+            <Modal
+                visible={!!recording || isAgentProcessing}
+                transparent
+                animationType="fade"
+                statusBarTranslucent
+            >
+                <View style={styles.agentOverlay}>
+                    <View style={styles.agentCard}>
+                        {/* Pulsing rings (listening) or spinner (processing) */}
+                        <View style={styles.agentIconWrapper}>
+                            {recording && !isAgentProcessing && (
+                                <>
+                                    <Animated.View style={[
+                                        styles.pulseRing,
+                                        { transform: [{ scale: pulse3 }], opacity: pulseOpacity3, borderColor: 'rgba(249,115,22,0.25)' }
+                                    ]} />
+                                    <Animated.View style={[
+                                        styles.pulseRing,
+                                        { transform: [{ scale: pulse2 }], opacity: pulseOpacity2, borderColor: 'rgba(249,115,22,0.4)' }
+                                    ]} />
+                                    <Animated.View style={[
+                                        styles.pulseRing,
+                                        { transform: [{ scale: pulse1 }], opacity: pulseOpacity1, borderColor: 'rgba(249,115,22,0.6)' }
+                                    ]} />
+                                </>
+                            )}
+                            {isAgentProcessing && (
+                                <Animated.View style={[styles.spinnerRing, { transform: [{ rotate: spin }] }]} />
+                            )}
+                            <View style={styles.agentMicBubble}>
+                                <Mic size={36} color="#fff" />
+                            </View>
+                        </View>
+
+                        <Text style={styles.agentStatusTitle}>
+                            {isAgentProcessing ? 'Traitement en cours...' : 'En écoute...'}
+                        </Text>
+                        <Text style={styles.agentStatusSub}>
+                            {isAgentProcessing
+                                ? 'L\'agent analyse votre commande vocale'
+                                : 'Parlez maintenant — relâchez pour envoyer'}
+                        </Text>
+
+                        {/* Live waveform bars (listening only) */}
+                        {recording && !isAgentProcessing && (
+                            <View style={styles.waveContainer}>
+                                {[1, 1.8, 1.3, 2.2, 1.5, 1.1, 1.9, 1.4, 2, 1.2].map((h, i) => (
+                                    <WaveBar key={i} height={h} delay={i * 80} />
+                                ))}
+                            </View>
+                        )}
+
+                        {isAgentProcessing && (
+                            <View style={styles.processingDots}>
+                                <ProcessingDot delay={0} />
+                                <ProcessingDot delay={200} />
+                                <ProcessingDot delay={400} />
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
 
             <Modal
                 animationType="slide"
@@ -413,6 +530,44 @@ export default function ReceptionScreen() {
             />
         </View>
     );
+}
+
+// Animated wave bar for listening state
+function WaveBar({ height, delay }) {
+    const anim = useRef(new Animated.Value(0.4)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.delay(delay),
+                Animated.timing(anim, { toValue: height, duration: 350, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.4, duration: 350, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            ])
+        ).start();
+    }, []);
+    return (
+        <Animated.View
+            style={[
+                styles.waveBar,
+                { transform: [{ scaleY: anim }] },
+            ]}
+        />
+    );
+}
+
+// Bouncing dot for processing state
+function ProcessingDot({ delay }) {
+    const anim = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.delay(delay),
+                Animated.timing(anim, { toValue: -10, duration: 300, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0, duration: 300, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+                Animated.delay(400),
+            ])
+        ).start();
+    }, []);
+    return <Animated.View style={[styles.processingDot, { transform: [{ translateY: anim }] }]} />;
 }
 
 const styles = StyleSheet.create({
@@ -647,5 +802,104 @@ const styles = StyleSheet.create({
         marginTop: 12,
         color: '#94a3b8',
         fontSize: 16,
+    },
+    fabAgentProcessing: {
+        backgroundColor: '#7c3aed',
+    },
+    // Agent overlay
+    agentOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.75)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    agentCard: {
+        backgroundColor: '#1e293b',
+        borderRadius: 32,
+        padding: 36,
+        alignItems: 'center',
+        width: '80%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.5,
+        shadowRadius: 30,
+        elevation: 20,
+    },
+    agentIconWrapper: {
+        width: 120,
+        height: 120,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    pulseRing: {
+        position: 'absolute',
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        borderWidth: 2,
+    },
+    spinnerRing: {
+        position: 'absolute',
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        borderWidth: 3,
+        borderColor: 'transparent',
+        borderTopColor: '#f97316',
+        borderRightColor: '#f97316',
+    },
+    agentMicBubble: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: '#f97316',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#f97316',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    agentStatusTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#f1f5f9',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    agentStatusSub: {
+        fontSize: 13,
+        color: '#94a3b8',
+        textAlign: 'center',
+        lineHeight: 18,
+        marginBottom: 24,
+    },
+    // Waveform
+    waveContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        height: 48,
+    },
+    waveBar: {
+        width: 4,
+        height: 36,
+        borderRadius: 4,
+        backgroundColor: '#f97316',
+    },
+    // Processing dots
+    processingDots: {
+        flexDirection: 'row',
+        gap: 10,
+        height: 40,
+        alignItems: 'flex-end',
+    },
+    processingDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#f97316',
     },
 });
